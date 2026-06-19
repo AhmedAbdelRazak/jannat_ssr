@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Jannat Booking">
+	<defs>
+		<linearGradient id="jb-bg" x1="8" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#030810" />
+			<stop offset="0.42" stop-color="#0d2239" />
+			<stop offset="0.72" stop-color="#124f7e" />
+			<stop offset="1" stop-color="#05745c" />
+		</linearGradient>
+		<linearGradient id="jb-shine" x1="11" y1="4" x2="45" y2="32" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#ffffff" stop-opacity="0.28" />
+			<stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+		</linearGradient>
+		<linearGradient id="jb-accent" x1="12" y1="55" x2="52" y2="55" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#ff8b1e" />
+			<stop offset="1" stop-color="#37d49c" />
+		</linearGradient>
+	</defs>
+	<rect width="64" height="64" rx="13" fill="url(#jb-bg)" />
+	<rect x="4" y="4" width="56" height="30" rx="10" fill="url(#jb-shine)" opacity="0.5" />
+	<rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="#37d49c" stroke-opacity="0.9" stroke-width="2.2" />
+	<path fill="#ffffff" d="M17.8 13h8.1v27c0 9.4-5.9 15-15 15-3.4 0-6.5-.7-9.2-2.2l2.7-6.8c1.8 1 3.8 1.5 5.9 1.5 4.8 0 7.5-2.7 7.5-7.7V13Z" />
+	<path fill="#ffffff" d="M31.8 13h15.8c7.6 0 12 4 12 10.1 0 3.7-1.8 6.8-4.9 8.4 4 1.5 6.4 4.8 6.4 9.3 0 6.9-5.2 11.2-13.2 11.2H31.8V13Zm7.6 7.1v9h7.1c3.3 0 5.1-1.7 5.1-4.6 0-2.7-1.8-4.4-5.1-4.4h-7.1Zm0 15.7v9.1h8.2c3.5 0 5.5-1.7 5.5-4.6s-2-4.5-5.5-4.5h-8.2Z" />
+	<rect x="12" y="55" width="40" height="5" rx="2.5" fill="url(#jb-accent)" />
+</svg>

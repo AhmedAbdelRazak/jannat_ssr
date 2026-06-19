@@ -1,0 +1,7 @@
+.next
+node_modules
+out
+*.log
+test-artifacts/
+.env*.local
+!.env.example

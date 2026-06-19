@@ -1,0 +1,398 @@
+JANNATBOOKING SSR REFERENCE
+Updated: 2026-06-19
+Project path: D:\JannatBooking\jannatbooking_ssr
+Related backend path: D:\JannatBooking\hotels_backend
+Related legacy public SPA path: D:\JannatBooking\jannatbooking_frontend
+Related admin/PMS frontend path: D:\JannatBooking\hotels_frontend
+
+Purpose
+This Next.js app is the server-rendered public Jannat Booking website. It was built to preserve the customer-facing structure and spirit of the legacy jannatbooking_frontend SPA while improving SEO, performance, crawlability, trust signals, RTL support, analytics, hotel discovery, chat/support, payments, and responsive UI.
+
+Current Runtime
+- Framework: Next.js App Router.
+- React: React 19.
+- Styling: app/globals.css.
+- Local dev command: npm run dev.
+- Local dev port: 3104.
+- Production build command: npm run build.
+- Production start command: npm run start.
+- Package file: package.json.
+- Main config: next.config.mjs.
+- Request proxy/middleware: proxy.js.
+
+Important Environment Variables
+- NEXT_PUBLIC_SITE_URL
+  - Public canonical site URL. Defaults are in lib/constants.js.
+- NEXT_PUBLIC_API_URL / API_URL / SERVER_API_URL
+  - Backend API base. lib/api.js defaults to https://xhotelpro.com/api.
+- NEXT_PUBLIC_DEV_API_URL
+  - Optional local backend API fallback in development. Default: http://localhost:8080/api.
+- API_FETCH_TIMEOUT_MS
+  - Server fetch timeout in milliseconds. Default: 3500.
+- NEXT_PUBLIC_SOCKET_URL
+  - Socket.IO base URL for support chat. Defaults from API base.
+- NEXT_PUBLIC_GOOGLE_ANALYTICS_ID / NEXT_PUBLIC_GA_ID
+  - Google Analytics measurement id.
+- NEXT_PUBLIC_FACEBOOK_PIXEL_ID
+  - Facebook Pixel id. Default exists in lib/constants.js.
+- NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE
+  - Live PayPal client id for checkout.
+- NEXT_PUBLIC_PAYPAL_CLIENT_ID_SANDBOX
+  - Sandbox PayPal client id for checkout.
+- NEXT_PUBLIC_PAYPAL_ENV
+  - Checkout environment switch.
+- NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  - Google login client id.
+
+Top-Level Structure
+- app/
+  - Next.js routes, metadata routes, robots, sitemap, llms.txt, global layout, and CSS.
+- components/
+  - UI components for header, footer, hotel cards, rooms, search, checkout, support chat, legal pages, contact, property listing, analytics, and app provider.
+- lib/
+  - API access, constants, i18n, language/currency helpers, formatting, support/chat query params, images, booking helpers, analytics mapping, and room labels.
+- public/
+  - favicon, app icons, flags, and destination images.
+- README.md
+  - Short developer intro.
+- JANNATBOOKING_SSR_REFERENCE.txt
+  - This detailed reference.
+
+Core Public Routes
+- app/page.js
+  - Home page with hero, search, destination cards, dynamic database banners, hotel cards, and trust sections.
+- app/our-hotels/page.js
+  - Hotel listing page.
+- app/rooms/page.js
+  - Room search/results page.
+- app/our-hotels-rooms/page.js
+  - Compatibility route for room/hotel discovery.
+- app/single-hotel/[slug]/page.js
+  - Main public hotel detail route.
+- app/hotel/[hotelslug]/page.js
+  - Legacy redirect to /single-hotel/[slug].
+- app/about/page.js
+  - Trust, company, reservation count, Makkah/Madinah, payment, and support messaging.
+- app/contact/page.js
+  - Contact/support page with backend-backed contact form.
+- app/terms-conditions/page.js
+  - Guest terms, hotel partner terms, and privacy policy.
+- app/list-property/page.js
+  - Property listing form.
+- app/list-your-property/page.js
+  - Redirect to /list-property.
+- app/jannat-offers-monthly-reservations/page.js
+  - Offers/deals page.
+- app/zad-offers-monthly-reservations/page.js
+  - Compatibility route.
+
+Private, Payment, Auth, And Utility Routes
+- app/checkout/page.js
+  - Checkout shell and PayPal-backed client checkout.
+- app/reservation-confirmed/page.js
+  - Reservation completion page.
+- app/reservation-verification/page.js
+  - Reservation verification flow.
+- app/single-reservation/[confirmation]/page.js
+  - Reservation invoice/public confirmation view.
+- app/single-reservations/[confirmation]/page.js
+  - Compatibility route.
+- app/generated-link/page.js
+- app/generated-link-checkout/[reservationId]/[confirmation]/page.js
+- app/client-payment/[reservationId]/[confirmation]/page.js
+- app/client-payment-triggering/[reservationId]/[confirmation]/[amountInSAR]/page.js
+- app/dashboard/page.js
+- app/signin/page.js
+- app/signup/page.js
+- app/auth/password/forgot/page.js
+- app/auth/password/reset/[token]/page.js
+- app/verify/[token]/page.js
+
+SEO And Crawl Support
+- app/layout.js
+  - Global metadata, icons, JSON-LD, app shell, header/footer/support widget.
+- app/robots.js
+  - Allows public marketing/hotel/legal/property routes and blocks private/payment/auth surfaces.
+- app/sitemap.js
+  - Dynamic sitemap including active hotel routes.
+- app/llms.txt/route.js
+  - AI/LLM crawler summary with public brand, route, and hotel context.
+- Important crawl principles:
+  - Keep public pages crawlable for reputable search/AI crawlers.
+  - Keep checkout, payment, dashboard, auth, verification, and private reservation surfaces noindex or out of sitemap.
+  - Never expose PII, private reservation details, admin URLs, secrets, or payment internals in metadata, sitemap, robots, or llms.txt.
+- Trust messaging:
+  - Jannat Booking operates since 2019.
+  - Supports PayPal and major card payment flows.
+  - Coordinates directly with hotel reception teams.
+  - Focuses on Makkah and Madinah hotel reservations.
+  - Arabic brand spelling used in UI where appropriate: جنات بوكينج.
+
+Global Layout And Branding
+- components/Header.js
+  - Top contact/social/language/currency strip and main nav.
+  - Main nav is sticky and overlays hero/single-hotel pages smoothly.
+  - Language toggle shows the opposite language target, with USA/KSA flags.
+  - Currency selector is available in header, mobile drawer, hotel/results toolbars, and home sections.
+- components/Footer.js
+  - Public footer, trust copy, social links, contact, newsletter-style input, and hotel quick links.
+- app/globals.css
+  - Metallic blue/black/green visual language.
+  - Makkah/Madinah-inspired green accents.
+  - RTL/LTR responsive rules.
+  - Hotel cards, room cards, legal pages, contact page, chat button/widget, checkout, and single-hotel gallery styling.
+- public/favicon.ico, public/favicon.svg, public/icons/*
+  - Jannat Booking favicon and app icons.
+- public/flags/usa.png and public/flags/ksa.png
+  - Header/drawer language flag assets.
+
+Application Provider
+- components/JannatAppProvider.js
+  - Central client context for language, direction, currency, exchange rates, formatting, cart state, drawer state, and helper links.
+  - Syncs lang and currency query params carefully.
+  - Preserves query params when navigating internal links.
+  - Uses localStorage only for client preferences.
+- lib/language.js and lib/i18n.js
+  - Language normalization and translation labels.
+  - Supported languages: English and Arabic.
+- lib/currency.js
+  - Currency options, query param parsing, SAR conversion, display labels, and href syncing.
+
+Search, Listings, And Pagination
+- components/SearchPanel.js
+  - Home search panel.
+  - Supports destination/city state, date fields, room/person fields, language, and currency query params.
+  - City/destination should remain standardized to Makkah and Madinah for current hotel inventory.
+- components/DestinationCards.js
+  - Makkah and Madinah destination cards with query-preserving links.
+- components/HotelExplorer.js
+  - Listing toolbar, filtering, sorting, and currency control.
+- components/HotelGrid.js
+  - Hotel listing grid.
+- components/PaginationControls.js
+  - Styled pagination.
+  - Preserves language and currency.
+  - Current user requirement: hotel and room pages use polished pagination with 15 items per page.
+- components/RoomsResultsHead.js
+  - Rooms page heading/action area with currency selector.
+
+Hotel Cards
+- components/HotelCard.js
+  - Public hotel card used in listing/home contexts.
+  - Shows image carousel, thumbnails, price, rating, amenities, distances, free cancellation, chat CTA, and details link.
+  - Clicking hotel name/image/details navigates to /single-hotel/[slug].
+  - Clicking/swiping thumbnails changes active image only; it must not navigate.
+  - Room count label uses lib/roomLabels.js so it displays "room type(s)" in English and Arabic equivalent in Arabic.
+
+Room Cards
+- components/RoomCard.js
+  - Public room type card.
+  - Shows image, room name, hotel, description, price, bed count, details, cart, and ask-to-book action.
+  - Uses cart/checkout helpers from lib/booking.js and provider context.
+  - Route links preserve language/currency.
+
+Single Hotel Page
+- components/SingleHotelView.js
+  - Main single hotel experience.
+  - The gallery is intentionally first under the sticky nav.
+  - The older top title slab was removed so the active image is the first visual focus.
+  - Active image and thumbnails are rendered as a fast gallery:
+    - Fallback/missing placeholder images are filtered by isUsableImage.
+    - Gallery images mount after idle and fade between preloaded layers.
+    - This reduces thumbnail-switch lag.
+  - Thumbnails are compact and responsive.
+  - Swipe support exists for mobile gallery changes.
+  - Rating, hotel name, location, room-type count, distances, flexible booking, and support CTA live below the gallery.
+  - Room section uses 15 item pagination.
+  - Important CSS selectors:
+    - .single-hotel-stage
+    - .single-hotel-gallery-shell
+    - .single-hotel-main-photo
+    - .single-main-gallery-image
+    - .single-gallery-thumbs
+    - .single-hotel-summary
+    - .single-hotel-facts
+
+Home Page Banners
+- components/HomePromoBanner.js
+  - Renders database-backed home promotional banners.
+  - Reads banner image/title/link fields from the Jannat website document.
+  - Normalizes internal links and preserves language/currency.
+  - Emits promo analytics events.
+- components/HomeSections.js
+  - Places database banners after destination cards and hotel cards when configured.
+
+Support Chat
+- components/SupportWidget.js
+  - Public B2C support widget.
+  - Uses /api/support-cases/new to create a case.
+  - Uses /api/support-cases/client/:id to read/update public client-side case messages.
+  - Uses Socket.IO for receiveMessage, typing, stopTyping, and closeCase events.
+  - Polls the case while open as a fallback.
+  - Query params are synced when the chat opens or when field changes are committed.
+  - Important query params:
+    - chat=open
+    - chatName
+    - chatContact
+    - chatHotelId
+    - chatHotelName
+    - chatInquiry
+    - chatDetails
+    - chatLanguage
+  - Best-practice behavior:
+    - Do not update URL while the user is actively typing.
+    - Commit URL changes when the user opens chat, changes fields, selects options, or starts chat.
+    - Avoid loops by using isolated helpers in lib/chatQueryParams.js.
+  - Related helpers:
+    - lib/support.js
+    - lib/chatQueryParams.js
+
+Contact Page And Customer Support
+- components/ContactForm.js
+  - Full contact/support form.
+  - Posts to /api/support-cases/contact.
+  - Sends language, sourceUrl, inquiry topic, name, email/phone, and message.
+  - Admin/PMS visibility is handled by backend/admin customer-service routes and hotels_frontend /admin customer-service surfaces.
+- components/ContactCards.js
+  - Email, phone, WhatsApp/contact cards.
+
+Property Listing
+- components/ListPropertyClient.js
+  - Public property listing form.
+  - Posts to /api/property-listing.
+  - City/location choices are standardized to Makkah and Madinah for current Jannat scope.
+  - Property type options mirror legacy public listing behavior.
+
+Terms, Privacy, And About Pages
+- components/AboutContent.js
+  - About page content, trust cards, dynamic reservation count, contact/social section.
+  - Reservation count loads once when the page mounts. It is not live/polling.
+  - SSR can provide an initial value; client mount fetch protects client-side navigation behavior.
+  - Uses /api/public-reservation-stats.
+- components/TermsContent.js
+  - Guest terms, hotel partner terms, and privacy policy tabs/content.
+  - Must stay professional, clear, crawlable, and RTL-safe.
+
+Checkout And Payments
+- components/CartDrawer.js
+  - Cart drawer with shared check-in/check-out dates for cart items.
+  - Displays selected currency while calculations remain SAR-based internally.
+- components/CheckoutClient.js
+  - PayPal checkout flow.
+  - Creates/clears pending reservations and captures PayPal orders through backend APIs.
+  - Private checkout/payment pages should not be added to sitemap.
+- lib/booking.js
+  - Booking/cart date and item helpers.
+- Backend payment dependencies:
+  - /api/paypal/token-generated
+  - /api/paypal/order/create
+  - /api/reservations/paypal/pending
+  - /api/reservations/paypal/pending-cancel
+  - /api/reservations/paypal/create
+  - /api/create-uncomplete-reservation-document
+  - /api/currencyapi-amounts/:saudimoney
+
+Analytics
+- components/Analytics.js
+  - Loads Google Analytics and Facebook Pixel.
+- lib/analyticsEvents.js
+  - Maps internal event names to GA/Facebook-friendly names and keeps legacy custom events.
+  - Important events include search, view hotel, add to cart, begin checkout, lead/chat/contact, currency change, promo click, and reservation/payment conversion style events.
+
+API Layer
+- lib/api.js
+  - Main API wrapper.
+  - Safe server fetch helpers use timeouts and JSON content-type checks.
+  - Public data fetches use revalidate where appropriate.
+  - Private/payment/reservation reads use no-store where needed.
+- Key public API methods:
+  - getWebsite -> /janat-website-document
+  - getPublicReservationStats -> /public-reservation-stats
+  - getHotels -> /active-hotel-list
+  - getFeaturedHotels -> /active-hotels
+  - getRoomTypes -> /distinct-rooms
+  - getHotelBySlug -> /single-hotel/:slug
+  - getRoomSearchResults -> /room-query-list/:query
+  - getDealHotels -> /hotels/active-with-deals
+  - propertyListingJannatClient -> /property-listing
+  - support/contact/chat uses /support-cases/*
+
+Image Handling
+- components/OptimizedImage.js
+  - Thin wrapper around next/image.
+  - Normalizes Jannat asset URLs via lib/images.js.
+- lib/images.js
+  - Converts jannatbooking.com/assets URLs to local /assets proxy route when possible.
+- app/assets/[...path]/route.js
+  - Proxies asset requests.
+- lib/format.js
+  - isUsableImage filters missing/default/fallback images.
+  - firstImage, slugifyHotel, titleCase, distance helpers, and rich text cleanup live here.
+
+Internationalization And RTL
+- Arabic should use RTL direction and the Arabic brand spelling جنات بوكينج where brand text is localized.
+- Numeric values that must remain left-to-right, such as +17,539, phone numbers, prices, and dates, should use bdi/ltr helpers and ltr-value classes.
+- Header, hero, hotel cards, single hotel page, room cards, about/legal/contact pages, cart, and checkout must be visually checked in both English and Arabic.
+
+Favicon And App Icons
+- Favicon and icons are defined in app/layout.js metadata.
+- Icon version token: ICON_VERSION in app/layout.js.
+- Assets:
+  - public/favicon.svg
+  - public/favicon.ico
+  - public/icons/icon-16.png
+  - public/icons/icon-32.png
+  - public/icons/icon-48.png
+  - public/icons/icon-192.png
+  - public/icons/icon-512.png
+  - public/icons/apple-touch-icon.png
+- When changing icons, update all icon sizes and bump ICON_VERSION to avoid browser cache confusion.
+
+Verification Checklist
+- npm run build
+- Open and visually inspect:
+  - http://localhost:3104/?lang=en
+  - http://localhost:3104/?lang=ar
+  - http://localhost:3104/about?lang=ar
+  - http://localhost:3104/contact?lang=ar
+  - http://localhost:3104/terms-conditions?lang=ar
+  - http://localhost:3104/our-hotels?lang=en
+  - http://localhost:3104/rooms?lang=en
+  - http://localhost:3104/single-hotel/zad-al-sad?lang=ar
+- Desktop checks:
+  - Header/nav sticky behavior.
+  - Hotel card image/thumbnail behavior.
+  - Room card density and spacing.
+  - About/legal/contact page spacing and RTL/LTR.
+  - Currency selector query preservation.
+- Mobile checks:
+  - Header flag/language button.
+  - Hero spacing and CTA layout.
+  - Support/chat floating button.
+  - Single hotel gallery, thumbnails, swipe, and summary.
+  - Cart drawer width and shared check-in/check-out dates.
+- Crawl checks:
+  - /robots.txt
+  - /sitemap.xml
+  - /llms.txt
+  - public page metadata and canonical URLs.
+
+Cleanup Rules
+- Do not commit generated screenshots or temporary Playwright output.
+- test-artifacts/ is for temporary visual verification only and should be removed after review.
+- .next/ and node_modules/ are generated runtime/dependency folders and should stay ignored by Git.
+- Do not remove .next while a dev server is running unless you intentionally stop and restart the server.
+- Local log files such as dev-server.out.log, dev-server.err.log, and .next-dev.log are safe to delete when not needed for debugging.
+
+Production Readiness Notes
+- Keep backend API base pointed to the production API in production.
+- Confirm PayPal env/client ids before production checkout tests.
+- Confirm Google Analytics and Facebook Pixel ids before launch.
+- Confirm sitemap uses the production domain.
+- Confirm active hotels have standardized Makkah/Madinah city/location data and valid room photos.
+- Confirm support chat creates records visible to admin customer service.
+- Confirm reservation count endpoint returns a valid number during client-side navigation and direct refresh.
+- Confirm private/payment/auth pages are not discoverable through sitemap/llms.
+
+Related Backend Reference
+- D:\JannatBooking\hotels_backend\JANNATBOOKING_SSR_BACKEND_REFERENCE.txt

@@ -1,0 +1,53 @@
+# Jannat Booking SSR
+
+Next.js SSR public website for Jannat Booking.
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+The dev server runs on port `3104`.
+
+## Public API Endpoints
+
+The public site reads only public Jannat backend endpoints:
+
+- `/api/janat-website-document`
+- `/api/active-hotels`
+- `/api/active-hotel-list`
+- `/api/distinct-rooms`
+- `/api/single-hotel/:slug`
+- `/api/room-query-list/:query`
+- `/api/hotels/active-with-deals`
+- `/api/support-cases/new`
+- `/api/support-cases/client/:id`
+
+Checkout, payment, reservation, and dashboard routes are treated as private or noindex surfaces.
+
+## SEO And Trust
+
+- Dynamic `robots.txt`, `sitemap.xml`, and `llms.txt` are implemented.
+- Public crawler access is allowed for marketing, hotel, terms, privacy, and property-listing pages.
+- Private checkout, payment, reservation, dashboard, auth, and verification routes are noindex.
+- Global JSON-LD includes Organization, WebSite, TravelAgency, and FAQ trust signals.
+- Trust copy covers operating since 2019, PayPal and major card payment support, hashed account-password handling, sanitized public receipts, and direct hotel-reception coordination.
+
+## Analytics And Chat
+
+- Google Analytics and Facebook Pixel load from `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` / `NEXT_PUBLIC_FACEBOOK_PIXEL_ID`.
+- Standard conversion events are emitted for search, hotel views, add-to-cart, checkout start, leads, contact, chat, and reservation requests while preserving legacy custom event names.
+- The support widget supports query-param state such as `chat=open`, `chatName`, `chatContact`, `chatHotelId`, `chatHotelName`, `chatInquiry`, `chatDetails`, and `chatLanguage`.
+
+## Verification
+
+- `npm run build`
+- `npm audit --omit=dev`
+- Temporary Playwright screenshots may be saved under `test-artifacts/` during UI checks, but that folder should be deleted after review.
+
+## Full Reference
+
+- `JANNATBOOKING_SSR_REFERENCE.txt`
+- Backend companion: `D:\JannatBooking\hotels_backend\JANNATBOOKING_SSR_BACKEND_REFERENCE.txt`
