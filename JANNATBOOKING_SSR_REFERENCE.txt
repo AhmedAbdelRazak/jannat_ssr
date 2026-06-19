@@ -400,3 +400,46 @@ Related Backend Reference
 Thread Implementation Summary
 - D:\JannatBooking\jannatbooking_ssr\THREAD_IMPLEMENTATION_SUMMARY_2026-06-19.md
   - Documents the 2026-06-19 SSR polish, checkout, offers, currency, private payment-link, PMS link-generation, backend support, and analytics/conversion tracking work.
+
+Production Cutover - 2026-06-19
+- Public domain: https://jannatbooking.com
+- Production server: ahmedadmin@jannat
+- SSR production path: /home/ahmedadmin/Hotels/jannatbooking_ssr
+- Production commit at cutover: 86a5596
+- PM2 process now serving public Jannat:
+  - name: jannat-ssr
+  - command: npm start
+  - port: 3104
+- Nginx route:
+  - / proxies to http://127.0.0.1:3104
+  - /api proxies to http://127.0.0.1:8080
+  - /socket.io proxies to http://127.0.0.1:8080
+  - /assets/ continues to use /var/www/jannat-assets/
+- Legacy React SPA:
+  - old PM2 process jannat-frontend was removed from PM2 and pm2 save was run.
+  - old code folder remains at /home/ahmedadmin/Hotels/jannatbooking_frontend for rollback reference.
+  - old nginx proxy port was 3102.
+- Backend and PMS were deployed first:
+  - hotels_backend pulled to 32f4798 and restarted through PM2.
+  - hotels_frontend pulled to 4cb5f61, rebuilt, and restarted through PM2.
+- SSR env:
+  - /home/ahmedadmin/Hotels/jannatbooking_ssr/.env.production
+  - permissions: 600
+  - browser API URL: https://jannatbooking.com/api
+  - server API URL: http://127.0.0.1:8080/api
+  - socket URL: https://jannatbooking.com
+  - site URL: https://jannatbooking.com
+  - public analytics and PayPal client IDs are present.
+  - no backend secrets, database URLs, JWT secrets, SendGrid, Twilio, or PayPal secrets should be placed in the SSR public env.
+- Cutover verification:
+  - nginx -t passed before reload.
+  - https://jannatbooking.com/ returned 200.
+  - /rooms?lang=ar&currency=sar returned 200.
+  - /jannat-offers-monthly-reservations returned 200.
+  - /client-payment/6a34d7ba59ca3c56c10a612d/3197993244?lang=ar&currency=sar returned 200.
+  - /robots.txt and /sitemap.xml returned 200.
+  - jannat-ssr PM2 error log was clean after cutover.
+  - Public rendered HTML checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed for home, rooms, offers, and client-payment.
+- Rollback notes:
+  - Nginx backup was created before the switch under /etc/nginx/sites-available/jannatbooking.backup-before-ssr-YYYYMMDDHHMMSS.
+  - If emergency rollback is needed, point the nginx / location back to http://127.0.0.1:3102 and start the legacy app from /home/ahmedadmin/Hotels/jannatbooking_frontend with PM2.

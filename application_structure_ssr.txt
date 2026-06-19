@@ -435,3 +435,33 @@ Source Of Truth Links
   - Normal cart checkout is implemented with PayPal support.
   - Private client-payment links are implemented in SSR, remain noindex/private, and are intentionally excluded from sitemap/llms discovery.
   - The detailed implementation summary for this thread is tracked in THREAD_IMPLEMENTATION_SUMMARY_2026-06-19.md.
+
+Production Cutover State
+- As of 2026-06-19, jannatbooking_ssr is the public production app for https://jannatbooking.com.
+- Production server path:
+  - /home/ahmedadmin/Hotels/jannatbooking_ssr
+- PM2 process:
+  - jannat-ssr
+  - npm start
+  - port 3104
+- Nginx:
+  - / => http://127.0.0.1:3104
+  - /api => http://127.0.0.1:8080
+  - /socket.io => http://127.0.0.1:8080
+  - /assets/ => /var/www/jannat-assets/
+- Production env:
+  - /home/ahmedadmin/Hotels/jannatbooking_ssr/.env.production
+  - mode 600
+  - browser API URL is https://jannatbooking.com/api
+  - server API URL is http://127.0.0.1:8080/api
+  - do not place backend secrets in SSR env.
+- Legacy jannatbooking_frontend:
+  - PM2 process jannat-frontend was removed and pm2 save was run.
+  - Source folder remains at /home/ahmedadmin/Hotels/jannatbooking_frontend for rollback reference.
+- Production dependencies deployed before the switch:
+  - hotels_backend at 32f4798
+  - hotels_frontend at 4cb5f61
+- Public verification after cutover:
+  - Home, rooms, offers, private client-payment, robots.txt, and sitemap.xml returned HTTP 200.
+  - jannat-ssr PM2 error log was clean.
+  - Rendered HTML marker checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed on key pages.
