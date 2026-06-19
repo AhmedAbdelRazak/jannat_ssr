@@ -8,6 +8,7 @@ import {
 	Building2,
 	CalendarDays,
 	FileText,
+	Gift,
 	Globe2,
 	Home,
 	Info,
@@ -35,6 +36,7 @@ import OptimizedImage from "./OptimizedImage";
 const iconMap = {
 	home: Home,
 	hotels: Building2,
+	offers: Gift,
 	terms: FileText,
 	about: Info,
 	contact: Phone,
@@ -46,6 +48,12 @@ const headerNavItems = [
 		href: "/our-hotels",
 		icon: "hotels",
 		label: { en: "Our Hotels", ar: "\u0641\u0646\u0627\u062f\u0642\u0646\u0627" },
+	},
+	{
+		href: "/jannat-offers-monthly-reservations",
+		icon: "offers",
+		label: { en: "Offers", ar: "\u0627\u0644\u0639\u0631\u0648\u0636" },
+		requiresOffers: true,
 	},
 	{
 		href: "/about",
@@ -76,7 +84,7 @@ const socialItems = [
 	{ key: "youtube", label: "YouTube", Icon: YoutubeFilled },
 ];
 
-export default function Header({ website = {} }) {
+export default function Header({ website = {}, hasOffers = false }) {
 	const pathname = usePathname();
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -103,6 +111,7 @@ export default function Header({ website = {} }) {
 	const targetLanguage = languageMeta[targetLanguageCode] || languageMeta.ar;
 	const languageToggleLabel = language === "ar" ? "Switch to English" : "Switch to Arabic";
 	const overlaysHero = pathname === "/" || String(pathname || "").startsWith("/single-hotel");
+	const visibleHeaderNavItems = headerNavItems.filter((item) => !item.requiresOffers || hasOffers);
 
 	useEffect(() => {
 		const onScroll = () => setIsScrolled(window.scrollY > 18);
@@ -129,7 +138,7 @@ export default function Header({ website = {} }) {
 
 	const menu = (
 		<nav className="main-nav" aria-label="Main navigation">
-			{headerNavItems.map((item) => {
+			{visibleHeaderNavItems.map((item) => {
 				const active = isActiveNavItem(item);
 				return (
 					<Link
@@ -227,8 +236,8 @@ export default function Header({ website = {} }) {
 					{menu}
 					<div className="header-actions">
 						{languageToggle("icon-action mobile-language-action")}
-						<button className="icon-action" type="button" onClick={() => setCartOpen(true)} aria-label={t("cart")}>
-							<Badge count={totals.rooms} size="small" offset={[5, -4]}>
+						<button className="icon-action cart-icon-action" type="button" onClick={() => setCartOpen(true)} aria-label={t("cart")}>
+							<Badge className="cart-icon-badge" count={totals.rooms} size="small" offset={[4, -3]}>
 								<ShoppingCart size={20} />
 							</Badge>
 						</button>
@@ -255,7 +264,7 @@ export default function Header({ website = {} }) {
 					<div className="mobile-drawer-logo">
 						<OptimizedImage src={logo} alt="Jannat Booking" width={150} height={66} sizes="150px" priority />
 					</div>
-					{headerNavItems.map((item) => {
+					{visibleHeaderNavItems.map((item) => {
 						const Icon = iconMap[item.icon] || Home;
 						const active = isActiveNavItem(item);
 						return (

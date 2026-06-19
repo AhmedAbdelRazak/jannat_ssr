@@ -2,13 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, App as AntdApp, Button, Checkbox, Form, Input, InputNumber, Spin } from "antd";
-import { PayPalButtons, PayPalScriptProvider, usePayPalScriptReducer } from "@paypal/react-paypal-js";
+import { Alert, App as AntdApp, Button, Checkbox, Form, Input, InputNumber, Select, Spin } from "antd";
+import {
+	PayPalButtons,
+	PayPalCardFieldsForm,
+	PayPalCardFieldsProvider,
+	PayPalCVVField,
+	PayPalExpiryField,
+	PayPalNameField,
+	PayPalNumberField,
+	PayPalScriptProvider,
+	usePayPalCardFields,
+	usePayPalScriptReducer,
+} from "@paypal/react-paypal-js";
 import { BedDouble, CalendarDays, CreditCard, Hotel, ShieldCheck, ShoppingCart, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { trackConversion } from "../lib/analyticsEvents";
+import { COUNTRY_SELECT_OPTIONS } from "../lib/countries";
 import {
 	cancelPayPalPendingReservation,
+	createPayPalOrder,
 	createReservationViaPayPal,
 	createUncompleteReservationDocument,
 	currencyConversion,
@@ -24,7 +37,6 @@ import {
 	safeNumber,
 	transformCartToPickedRoomsType,
 } from "../lib/booking";
-import { sar } from "../lib/format";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
 
@@ -37,11 +49,230 @@ const passwordFromPhone = (phone = "") => normalizePhoneInput(phone).replace(/\s
 
 const toMoney = (value) => Number(safeNumber(value, 0).toFixed(2));
 
+const APPLE_PAY_SDK_SRC = "https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js";
+
+const ensureApplePaySdk = () => {
+	if (typeof window === "undefined") return Promise.resolve(false);
+	if (window.ApplePaySession) return Promise.resolve(true);
+	return new Promise((resolve) => {
+		const existing = document.querySelector(`script[src="${APPLE_PAY_SDK_SRC}"]`);
+		if (existing) {
+			let settled = false;
+			const finish = (value) => {
+				if (settled) return;
+				settled = true;
+				resolve(value);
+			};
+			existing.addEventListener("load", () => finish(Boolean(window.ApplePaySession)), { once: true });
+			existing.addEventListener("error", () => finish(false), { once: true });
+			window.setTimeout(() => finish(Boolean(window.ApplePaySession)), 3000);
+			return;
+		}
+		const script = document.createElement("script");
+		script.src = APPLE_PAY_SDK_SRC;
+		script.async = true;
+		script.setAttribute("data-apple-pay-sdk", "true");
+		script.onload = () => resolve(Boolean(window.ApplePaySession));
+		script.onerror = () => resolve(false);
+		document.head.appendChild(script);
+	});
+};
+
+const truncatePayPalText = (value, max = 127) => {
+	const text = String(value || "");
+	if (text.length <= max) return text;
+	return `${text.slice(0, Math.max(0, max - 3))}...`;
+};
+
+const buildPayPalInvoiceId = (confirmation = "") =>
+	`Jannat-${confirmation || "reservation"}-${Date.now().toString(36).slice(-6)}`.slice(0, 127);
+
+const getPayPalMetadataId = () => {
+	try {
+		return window?.paypal?.getClientMetadataID?.() || null;
+	} catch (_error) {
+		return null;
+	}
+};
+
+const paypalErrorMessage = (error, isArabic, fallbackType = "payment") => {
+	const raw = String(error?.response?.message || error?.message || error?.name || "").trim();
+	const normalized = raw.toUpperCase();
+	if (normalized.includes("INSTRUMENT_DECLINED") || normalized.includes("DECLINED")) {
+		return isArabic
+			? "\u062a\u0645 \u0631\u0641\u0636 \u0648\u0633\u064a\u0644\u0629 \u0627\u0644\u062f\u0641\u0639. \u064a\u0631\u062c\u0649 \u062a\u062c\u0631\u0628\u0629 \u0628\u0637\u0627\u0642\u0629 \u0623\u062e\u0631\u0649 \u0623\u0648 \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0646\u0643."
+			: "The payment method was declined. Please try another card or contact your bank.";
+	}
+	if (normalized.includes("CARD_FIELDS") || normalized.includes("HOSTED_FIELDS")) {
+		return isArabic
+			? "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0622\u0645\u0646\u0629. \u064a\u0631\u062c\u0649 \u062a\u062c\u0631\u0628\u0629 \u0632\u0631 PayPal \u0623\u0648 \u0625\u064a\u0642\u0627\u0641 \u0645\u0627\u0646\u0639 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0648\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629."
+			: "Secure card fields could not load. Please try the PayPal/card button above, or disable ad blockers and try again.";
+	}
+	if (normalized.includes("NETWORK") || normalized.includes("LOAD") || normalized.includes("SCRIPT")) {
+		return isArabic
+			? "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u062f\u0641\u0639. \u064a\u0631\u062c\u0649 \u0641\u062d\u0635 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0623\u0648 \u062a\u0639\u0637\u064a\u0644 \u0645\u0627\u0646\u0639 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0623\u0648 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649."
+			: "The payment module could not load. Please check your connection, disable ad blockers, or try again.";
+	}
+	if (raw && raw.length <= 180 && !/^Error$/i.test(raw)) return raw;
+	if (fallbackType === "card") {
+		return isArabic
+			? "\u062a\u0639\u0630\u0631 \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u062f\u0641\u0639 \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629. \u064a\u0631\u062c\u0649 \u0645\u0631\u0627\u062c\u0639\u0629 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0623\u0648 \u062a\u062c\u0631\u0628\u0629 \u0628\u0637\u0627\u0642\u0629 \u0623\u062e\u0631\u0649."
+			: "Card payment could not be completed. Please check the card details or try another card.";
+	}
+	return isArabic
+		? "\u062a\u0639\u0630\u0631 \u0625\u062a\u0645\u0627\u0645 \u0627\u0644\u062f\u0641\u0639. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649 \u0623\u0648 \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u062f\u0639\u0645 \u062c\u0646\u0627\u062a \u0628\u0648\u0643\u064a\u0646\u062c."
+		: "Payment could not be completed. Please try again or contact Jannat Booking support.";
+};
+
 const optionLabel = (option) => {
 	if (option === "deposit") return "Deposit Paid";
 	if (option === "full") return "Paid Online";
 	return "Not Paid";
 };
+
+const filterCountryOption = (input = "", option = {}) =>
+	`${option.label || ""} ${option.value || ""}`.toLowerCase().includes(input.toLowerCase());
+
+const checkoutQueryFields = Object.freeze({
+	fullName: "fullName",
+	phone: "phone",
+	email: "email",
+	nationality: "nationality",
+});
+
+const checkoutQueryAliases = Object.freeze({
+	fullName: ["fullName", "name"],
+	phone: ["phone"],
+	email: ["email"],
+	nationality: ["nationality"],
+});
+
+const checkoutQueryLimits = Object.freeze({
+	fullName: 120,
+	phone: 40,
+	email: 160,
+	nationality: 2,
+});
+
+const normalizeCheckoutQueryValue = (field, value = "") => {
+	const rawValue = String(value || "").trim();
+	if (field === "nationality") {
+		const countryCode = rawValue.toUpperCase();
+		if (/^[A-Z]{2}$/.test(countryCode)) return countryCode;
+		const countryMatch = COUNTRY_SELECT_OPTIONS.find((country) => country.label.toLowerCase() === rawValue.toLowerCase());
+		return countryMatch?.value || "";
+	}
+
+	const normalized =
+		field === "phone"
+			? normalizePhoneInput(rawValue)
+			: field === "email"
+				? rawValue.toLowerCase()
+				: rawValue.replace(/\s+/g, " ");
+	return normalized.slice(0, checkoutQueryLimits[field] || 160);
+};
+
+const checkoutValuesFromQuery = () => {
+	if (typeof window === "undefined") return {};
+	const params = new URLSearchParams(window.location.search);
+	return Object.entries(checkoutQueryAliases).reduce((values, [field, aliases]) => {
+		const value = aliases.map((key) => params.get(key)).find((entry) => entry !== null);
+		const normalized = normalizeCheckoutQueryValue(field, value || "");
+		if (normalized) values[field] = normalized;
+		return values;
+	}, {});
+};
+
+const CHECKOUT_VALIDATION_MESSAGE_KEY = "checkout-validation";
+const checkoutFormIssueFields = new Set(["fullName", "phone", "email", "nationality"]);
+const checkoutIssueSelectors = {
+	fullName: "#checkout-full-name",
+	phone: "#checkout-phone",
+	email: "#checkout-email",
+	nationality: ".checkout-nationality-select .ant-select-selector",
+	paymentOption: '[data-checkout-field="paymentOption"]',
+	terms: '[data-checkout-field="terms"]',
+	cart: ".checkout-summary",
+	hotel: ".checkout-summary",
+};
+
+const checkoutValidationMessage = (field, isArabic) => {
+	const messages = {
+		cart: isArabic ? "السلة فارغة." : "Your cart is empty.",
+		hotel: isArabic
+			? "يرجى حجز غرف من فندق واحد فقط في كل طلب."
+			: "Please book rooms from one hotel per reservation.",
+		paymentOption: isArabic ? "يرجى اختيار طريقة الدفع." : "Please choose how you would like to pay.",
+		terms: isArabic ? "يرجى الموافقة على الشروط والأحكام." : "Please accept the Terms & Conditions.",
+		fullName: isArabic ? "يرجى كتابة الاسم الكامل." : "Please enter your full name, first and last name.",
+		phone: isArabic ? "يرجى كتابة رقم جوال صحيح." : "Please enter a valid phone number.",
+		email: isArabic ? "يرجى كتابة بريد إلكتروني صحيح." : "Please enter a valid email address.",
+		nationality: isArabic ? "يرجى اختيار الجنسية." : "Please select your nationality.",
+	};
+	return messages[field] || (isArabic ? "يرجى مراجعة بيانات الحجز." : "Please review your booking details.");
+};
+
+const isCheckoutFormIssueResolved = (field, values = {}) => {
+	if (field === "fullName") {
+		const name = String(values.fullName || "").trim();
+		return name.split(/\s+/).filter(Boolean).length >= 2;
+	}
+	if (field === "phone") {
+		return /^\+?[0-9\s-]{5,}$/.test(normalizePhoneInput(values.phone));
+	}
+	if (field === "email") {
+		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(values.email || "").trim().toLowerCase());
+	}
+	if (field === "nationality") {
+		return Boolean(String(values.nationality || "").trim());
+	}
+	return false;
+};
+
+const focusCheckoutIssue = (field) => {
+	if (typeof window === "undefined") return;
+	window.requestAnimationFrame(() => {
+		const element = document.querySelector(checkoutIssueSelectors[field] || `[data-checkout-field="${field}"]`);
+		if (!element) return;
+		element.scrollIntoView({ behavior: "smooth", block: "center" });
+		const focusTarget =
+			element.matches?.("input, textarea, button, [tabindex]") ||
+			element.getAttribute?.("role") === "button"
+				? element
+				: element.querySelector?.("input, textarea, button, [tabindex], .ant-select-selector");
+		focusTarget?.focus?.({ preventScroll: true });
+	});
+};
+
+function PaymentAmountBreakdown({
+	sarAmount,
+	usdAmount,
+	selectedCurrency = "sar",
+	formatCurrency,
+	isArabic,
+	compact = false,
+}) {
+	const showSelectedCurrency = selectedCurrency !== "sar" && typeof formatCurrency === "function";
+	const usdValue = Number(usdAmount || 0);
+	return (
+		<span className={`payment-amount-breakdown${compact ? " compact" : ""}`} dir="ltr">
+			{showSelectedCurrency ? (
+				<span className="payment-amount-primary">
+					<strong>{formatCurrency(sarAmount)}</strong>
+					<em>{isArabic ? "عملة الضيف" : "Guest currency"}</em>
+				</span>
+			) : null}
+			<span className={showSelectedCurrency ? "payment-amount-ledger" : "payment-amount-primary"}>
+				<strong>SAR {toMoney(sarAmount).toFixed(2)}</strong>
+				<em>{isArabic ? "مبلغ الحجز" : "Reservation amount"}</em>
+			</span>
+			<span className="payment-amount-paypal">
+				<strong>{usdValue > 0 ? `USD ${toMoney(usdValue).toFixed(2)}` : "USD pending"}</strong>
+				<em>{isArabic ? "خصم PayPal" : "PayPal charge"}</em>
+			</span>
+		</span>
+	);
+}
 
 function PaymentOptions({
 	acceptance = defaultGuestPaymentAcceptance,
@@ -51,24 +282,30 @@ function PaymentOptions({
 	totalUsd,
 	isArabic,
 	onTouched,
+	hasError = false,
+	selectedCurrency = "sar",
+	formatCurrency,
 }) {
 	const rows = [
 		{
 			key: "acceptDeposit",
 			title: isArabic ? "دفع العربون أونلاين (15%)" : "Accept Deposit Online (15%)",
-			amount: `${sar(totalSar * 0.15)} · USD ${toMoney(totalUsd * 0.15).toFixed(2)}`,
+			sarAmount: totalSar * 0.15,
+			usdAmount: totalUsd * 0.15,
 			enabled: acceptance.acceptDeposit !== false,
 		},
 		{
 			key: "acceptPayWholeAmount",
 			title: isArabic ? "دفع مبلغ الحجز بالكامل أونلاين" : "Pay Whole Amount Online",
-			amount: `${sar(totalSar)} · USD ${toMoney(totalUsd).toFixed(2)}`,
+			sarAmount: totalSar,
+			usdAmount: totalUsd,
 			enabled: acceptance.acceptPayWholeAmount !== false,
 		},
 		{
 			key: "acceptReserveNowPayInHotel",
 			title: isArabic ? "احجز الآن وادفع في الفندق" : "Reserve Now, Pay in Hotel",
-			amount: `${sar(totalSar * 1.1)} · USD ${toMoney(totalUsd * 1.1).toFixed(2)}`,
+			sarAmount: totalSar * 1.1,
+			usdAmount: totalUsd * 1.1,
 			enabled: acceptance.acceptReserveNowPayInHotel === true,
 		},
 	].filter((row) => row.enabled);
@@ -77,13 +314,17 @@ function PaymentOptions({
 		rows.push({
 			key: "acceptDeposit",
 			title: isArabic ? "دفع العربون أونلاين (15%)" : "Accept Deposit Online (15%)",
-			amount: `${sar(totalSar * 0.15)} · USD ${toMoney(totalUsd * 0.15).toFixed(2)}`,
+			sarAmount: totalSar * 0.15,
+			usdAmount: totalUsd * 0.15,
 			enabled: true,
 		});
 	}
 
 	return (
-		<div className="payment-options">
+		<div
+			className={`payment-options${hasError ? " checkout-field-attention" : ""}`}
+			data-checkout-field="paymentOption"
+		>
 			<h3>{isArabic ? "طريقة الدفع" : "Payment Option"}</h3>
 			{rows.map((row) => (
 				<button
@@ -98,7 +339,13 @@ function PaymentOptions({
 					<span className="radio-dot" />
 					<span>
 				<strong>{row.title}</strong>
-				<small dir="ltr" className="ltr-value">{row.amount}</small>
+				<PaymentAmountBreakdown
+					sarAmount={row.sarAmount}
+					usdAmount={row.usdAmount}
+					selectedCurrency={selectedCurrency}
+					formatCurrency={formatCurrency}
+					isArabic={isArabic}
+				/>
 					</span>
 				</button>
 			))}
@@ -115,6 +362,222 @@ function PayPalStatus() {
 	) : null;
 }
 
+function CardFieldsSubmitButton({ allowInteract, labels, onBeforeSubmit, shouldSuppressError }) {
+	const { message } = AntdApp.useApp();
+	const cardFieldsContext = usePayPalCardFields();
+	const cardFieldsForm = cardFieldsContext?.cardFieldsForm;
+	const cardFields = cardFieldsContext?.cardFields;
+	const [busy, setBusy] = useState(false);
+	const [ready, setReady] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		let tries = 0;
+		const checkReady = () => {
+			if (cancelled) return;
+			const submitFn =
+				(cardFieldsForm && cardFieldsForm.submit) ||
+				(cardFields && cardFields.submit) ||
+				null;
+			const eligible =
+				(cardFieldsForm?.isEligible?.() ?? true) &&
+				(cardFields?.isEligible?.() ?? true);
+			setReady(typeof submitFn === "function" && eligible);
+			if ((!submitFn || !eligible) && tries < 60) {
+				tries += 1;
+				window.setTimeout(checkReady, 250);
+			}
+		};
+		checkReady();
+		return () => {
+			cancelled = true;
+		};
+	}, [cardFieldsForm, cardFields]);
+
+	const submit = async () => {
+		const submitFn =
+			(cardFieldsForm && cardFieldsForm.submit) ||
+			(cardFields && cardFields.submit) ||
+			null;
+		if (!allowInteract || typeof submitFn !== "function") return;
+		setBusy(true);
+		try {
+			if (onBeforeSubmit && !onBeforeSubmit()) {
+				return;
+			}
+			if (cardFieldsForm?.getState) {
+				const state = await cardFieldsForm.getState();
+				if (state && !state.isFormValid) {
+					message.open({
+						key: "paypal-card-fields-validation",
+						type: "error",
+						content: labels.incomplete,
+						duration: 4,
+					});
+					setBusy(false);
+					return;
+				}
+			}
+			await submitFn();
+		} catch (error) {
+			if (error?.silent || shouldSuppressError?.(error)) return;
+			console.error("PayPal card fields submit failed:", error);
+			message.open({
+				key: "paypal-card-fields-validation",
+				type: "error",
+				content: labels.failed,
+				duration: 4,
+			});
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const disabled = !allowInteract || !ready || busy;
+	return (
+		<button
+			type="button"
+			className="paypal-card-submit"
+			onClick={submit}
+			disabled={disabled}
+			aria-disabled={disabled}
+		>
+			{busy ? labels.processing : labels.pay}
+		</button>
+	);
+}
+
+function ApplePayCheckoutButton({
+	allowInteract,
+	isArabic,
+	selectedPaymentOption,
+	selectedUsdAmount,
+	selectedSarAmount,
+	createApplePayOrder,
+	onApplePayApproved,
+	onBeforeStart,
+	chargeLabel,
+}) {
+	const { message } = AntdApp.useApp();
+	const [{ isResolved }] = usePayPalScriptReducer();
+	const [applepayConfig, setApplepayConfig] = useState(null);
+	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		const boot = async () => {
+			if (!isResolved) return;
+			if (
+				!window.ApplePaySession ||
+				(typeof window.ApplePaySession.canMakePayments === "function" &&
+					!window.ApplePaySession.canMakePayments())
+			) {
+				if (!cancelled) setApplepayConfig(null);
+				return;
+			}
+			await ensureApplePaySdk();
+			if (!window.ApplePaySession || !window.paypal?.Applepay) {
+				if (!cancelled) setApplepayConfig(null);
+				return;
+			}
+			try {
+				const config = await window.paypal.Applepay().config();
+				if (!cancelled) setApplepayConfig(config?.isEligible ? config : null);
+			} catch (_error) {
+				if (!cancelled) setApplepayConfig(null);
+			}
+		};
+		boot();
+		return () => {
+			cancelled = true;
+		};
+	}, [isResolved]);
+
+	const startApplePay = async () => {
+		if (onBeforeStart && !onBeforeStart()) return;
+		if (!allowInteract || !selectedPaymentOption) {
+			message.error(isArabic ? "\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u062e\u064a\u0627\u0631 \u062f\u0641\u0639 \u0635\u062d\u064a\u062d \u0623\u0648\u0644\u0627." : "Please choose a valid payment option first.");
+			return;
+		}
+		if (!window.ApplePaySession || !window.paypal?.Applepay || !applepayConfig?.isEligible) {
+			message.error(isArabic ? "\u062e\u064a\u0627\u0631 Apple Pay \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062c\u0647\u0627\u0632 \u0623\u0648 \u0627\u0644\u0645\u062a\u0635\u0641\u062d." : "Apple Pay is not available on this device or browser.");
+			return;
+		}
+		const amountUsd = Number(selectedUsdAmount || 0).toFixed(2);
+		if (!(Number(amountUsd) > 0)) {
+			message.error(isArabic ? "\u0645\u0628\u0644\u063a \u0627\u0644\u062f\u0641\u0639 \u063a\u064a\u0631 \u062c\u0627\u0647\u0632 \u0628\u0639\u062f." : "The payment amount is not ready yet.");
+			return;
+		}
+
+		const applepay = window.paypal.Applepay();
+		const session = new window.ApplePaySession(4, {
+			countryCode: applepayConfig.countryCode || "US",
+			currencyCode: "USD",
+			merchantCapabilities: applepayConfig.merchantCapabilities,
+			supportedNetworks: applepayConfig.supportedNetworks,
+			total: {
+				label: "Jannat Booking",
+				type: "final",
+				amount: amountUsd,
+			},
+		});
+
+		session.onvalidatemerchant = async (event) => {
+			try {
+				const validateResult = await applepay.validateMerchant({
+					validationUrl: event.validationURL,
+					displayName: "Jannat Booking",
+				});
+				session.completeMerchantValidation(validateResult.merchantSession);
+			} catch (error) {
+				session.abort();
+				message.error(paypalErrorMessage(error, isArabic));
+			}
+		};
+
+		session.onpaymentauthorized = async (event) => {
+			setLoading(true);
+			try {
+				const orderId = await createApplePayOrder();
+				await applepay.confirmOrder({
+					orderId,
+					token: event.payment.token,
+					billingContact: event.payment.billingContact,
+				});
+				await onApplePayApproved({ orderID: orderId });
+				session.completePayment(window.ApplePaySession.STATUS_SUCCESS);
+			} catch (error) {
+				session.completePayment(window.ApplePaySession.STATUS_FAILURE);
+				message.error(paypalErrorMessage(error, isArabic));
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		session.begin();
+	};
+
+	if (!isResolved || !applepayConfig?.isEligible) return null;
+
+	return (
+		<div className="apple-pay-section">
+			<button
+				type="button"
+				className="apple-pay-fallback"
+				onClick={startApplePay}
+				disabled={!allowInteract || loading}
+				aria-label={isArabic ? "\u0627\u0644\u062f\u0641\u0639 \u0628\u0648\u0627\u0633\u0637\u0629 Apple Pay" : "Pay with Apple Pay"}
+			>
+				<apple-pay-button buttonstyle="black" type="buy" locale="en" />
+			</button>
+			<span>
+				{isArabic ? "\u0645\u062f\u0639\u0648\u0645 \u0645\u0646" : "Powered by"} <b>PayPal</b>
+				<span dir="ltr" className="ltr-value"> {chargeLabel || `SAR ${Number(selectedSarAmount || 0).toFixed(2)} / USD ${Number(selectedUsdAmount || 0).toFixed(2)}`}</span>
+			</span>
+		</div>
+	);
+}
+
 function JannatPayPalButtons({
 	canPay,
 	isArabic,
@@ -125,14 +588,22 @@ function JannatPayPalButtons({
 	getPendingReservationPayload,
 	onPayApproved,
 	onTouched,
+	walletOnly = false,
+	onUseWalletOnly,
+	onReloadPayment,
+	onValidationError,
+	selectedCurrency = "sar",
+	formatCurrency,
 }) {
 	const { message } = AntdApp.useApp();
+	const [{ isResolved, isRejected }] = usePayPalScriptReducer();
 	const pendingRef = useRef({
 		pendingReservationId: null,
 		confirmation_number: null,
 		invoice_id: null,
 		payload: null,
 	});
+	const suppressPaymentErrorUntilRef = useRef(0);
 
 	const selectedUsdAmount =
 		selectedPaymentOption === "acceptDeposit"
@@ -147,6 +618,38 @@ function JannatPayPalButtons({
 				? toMoney(totalSar)
 				: 0;
 	const allowInteract = canPay && selectedUsdAmount > 0 && selectedSarAmount > 0;
+	const selectedCurrencyAmount =
+		selectedCurrency !== "sar" && typeof formatCurrency === "function"
+			? formatCurrency(selectedSarAmount)
+			: "";
+	const payButtonAmountLabel = selectedCurrencyAmount || `SAR ${selectedSarAmount.toFixed(2)}`;
+	const payPalChargeNode = (
+		<PaymentAmountBreakdown
+			sarAmount={selectedSarAmount}
+			usdAmount={selectedUsdAmount}
+			selectedCurrency={selectedCurrency}
+			formatCurrency={formatCurrency}
+			isArabic={isArabic}
+			compact
+		/>
+	);
+	const suppressNextPaymentError = () => {
+		suppressPaymentErrorUntilRef.current = Date.now() + 4000;
+	};
+	const shouldSuppressPaymentError = (error) =>
+		Boolean(error?.silent || Date.now() < suppressPaymentErrorUntilRef.current);
+	const reportValidationError = (field, fallback) => {
+		if (onValidationError) {
+			onValidationError(field, fallback);
+			return;
+		}
+		message.open({
+			key: CHECKOUT_VALIDATION_MESSAGE_KEY,
+			type: "error",
+			content: fallback || checkoutValidationMessage(field, isArabic),
+			duration: 4,
+		});
+	};
 
 	const cancelPending = useCallback(async () => {
 		const pendingReservationId = pendingRef.current?.pendingReservationId;
@@ -174,6 +677,7 @@ function JannatPayPalButtons({
 		}
 		const payload = getPendingReservationPayload?.();
 		if (!payload) {
+			suppressNextPaymentError();
 			const err = new Error("");
 			err.silent = true;
 			throw err;
@@ -187,13 +691,21 @@ function JannatPayPalButtons({
 		pendingRef.current = {
 			pendingReservationId,
 			confirmation_number,
-			invoice_id: `Jannat-${confirmation_number}-${Date.now().toString(36).slice(-6)}`.slice(0, 127),
+			invoice_id: buildPayPalInvoiceId(confirmation_number),
 			payload,
 		};
 		return pendingRef.current;
 	};
 
 	const validateBeforePay = () => {
+		if (!guestAgreed) {
+			reportValidationError("terms", checkoutValidationMessage("terms", isArabic));
+			return false;
+		}
+		if (!allowInteract) {
+			reportValidationError("paymentOption", checkoutValidationMessage("paymentOption", isArabic));
+			return false;
+		}
 		if (!guestAgreed) {
 			message.error(isArabic ? "يرجى الموافقة على الشروط والأحكام أولا." : "Please accept the Terms & Conditions first.");
 			return false;
@@ -205,8 +717,75 @@ function JannatPayPalButtons({
 		return true;
 	};
 
+	const validateCardSubmitReadiness = () => {
+		if (!validateBeforePay()) {
+			suppressNextPaymentError();
+			return false;
+		}
+		const payload = getPendingReservationPayload?.();
+		if (!payload) {
+			suppressNextPaymentError();
+			return false;
+		}
+		return true;
+	};
+
+	const handlePaymentButtonClick = (_data, actions) => {
+		if (!validateCardSubmitReadiness()) {
+			return actions?.reject ? actions.reject() : false;
+		}
+		return actions?.resolve ? actions.resolve() : true;
+	};
+
+	const buildPurchaseUnits = (label, pending) => {
+		const payload = pending?.payload || {};
+		const guest = payload.customerDetails || payload.customer_details || {};
+		const confirmation = pending?.confirmation_number || "";
+		const hotelName = payload.hotelName || payload.hotel_name || "Jannat Booking";
+		const checkin = payload.checkin_date || "";
+		const checkout = payload.checkout_date || "";
+		const guestName = guest.name || "Guest";
+		const invoiceId = pending.invoice_id || buildPayPalInvoiceId(confirmation);
+		return [
+			{
+				reference_id: "default",
+				invoice_id: invoiceId,
+				custom_id: confirmation,
+				description: truncatePayPalText(
+					`Jannat Booking reservation - ${hotelName} - ${label} - ${checkin} to ${checkout} - ${guestName}`
+				),
+				amount: {
+					currency_code: "USD",
+					value: selectedUsdAmount.toFixed(2),
+					breakdown: {
+						item_total: {
+							currency_code: "USD",
+							value: selectedUsdAmount.toFixed(2),
+						},
+					},
+				},
+				items: [
+					{
+						name: truncatePayPalText(`${hotelName} - ${label}`),
+						description: truncatePayPalText(
+							`Guest: ${guestName}, Phone: ${guest.phone || "n/a"}, Email: ${guest.email || "n/a"}, Conf: ${confirmation}`
+						),
+						quantity: "1",
+						unit_amount: {
+							currency_code: "USD",
+							value: selectedUsdAmount.toFixed(2),
+						},
+						category: "DIGITAL_GOODS",
+						sku: confirmation ? `CNF-${confirmation}` : undefined,
+					},
+				],
+			},
+		];
+	};
+
 	const createOrder = async (_data, actions) => {
 		if (!validateBeforePay()) {
+			suppressNextPaymentError();
 			const err = new Error("");
 			err.silent = true;
 			throw err;
@@ -221,43 +800,64 @@ function JannatPayPalButtons({
 				: isArabic
 					? "المبلغ الكامل"
 					: "Full amount";
-		return actions.order.create({
+		pending.invoice_id = pending.invoice_id || buildPayPalInvoiceId(pending.confirmation_number);
+		pendingRef.current.invoice_id = pending.invoice_id;
+		const orderPayload = {
 			intent: "CAPTURE",
-			purchase_units: [
-				{
-					reference_id: "default",
-					invoice_id: pending.invoice_id,
-					custom_id: pending.confirmation_number,
-					description: `Jannat Booking reservation - ${optionText}`.slice(0, 127),
-					amount: {
-						currency_code: "USD",
-						value: selectedUsdAmount.toFixed(2),
-						breakdown: {
-							item_total: {
-								currency_code: "USD",
-								value: selectedUsdAmount.toFixed(2),
-							},
-						},
-					},
-					items: [
-						{
-							name: `Jannat Booking - ${optionText}`.slice(0, 127),
-							quantity: "1",
-							unit_amount: {
-								currency_code: "USD",
-								value: selectedUsdAmount.toFixed(2),
-							},
-							category: "DIGITAL_GOODS",
-						},
-					],
-				},
-			],
+			purchase_units: buildPurchaseUnits(optionText, pending),
+			application_context: {
+				user_action: "PAY_NOW",
+				shipping_preference: "NO_SHIPPING",
+				brand_name: "Jannat Booking",
+			},
+		};
+		if (actions?.order?.create) {
+			return actions.order.create(orderPayload);
+		}
+		const serverOrder = await createPayPalOrder({
+			...orderPayload,
+			payment_source: {
+				card: { attributes: { vault: { store_in_vault: "ON_SUCCESS" } } },
+			},
+		});
+		if (!serverOrder?.id) {
+			throw new Error(
+				isArabic
+					? "\u062a\u0639\u0630\u0631 \u0625\u0646\u0634\u0627\u0621 \u0637\u0644\u0628 \u0627\u0644\u062f\u0641\u0639 \u0644\u0644\u0628\u0637\u0627\u0642\u0629."
+					: "Could not create a secure card payment order."
+			);
+		}
+		return serverOrder.id;
+	};
+
+	const createApplePayOrder = async () => {
+		if (!validateBeforePay()) {
+			suppressNextPaymentError();
+			const err = new Error("");
+			err.silent = true;
+			throw err;
+		}
+		onTouched?.("Apple Pay createOrder");
+		const pending = await ensurePendingReservation();
+		const optionText =
+			selectedPaymentOption === "acceptDeposit"
+				? "Deposit 15%"
+				: "Full amount";
+		pending.invoice_id = pending.invoice_id || buildPayPalInvoiceId(pending.confirmation_number);
+		pendingRef.current.invoice_id = pending.invoice_id;
+		const serverOrder = await createPayPalOrder({
+			intent: "CAPTURE",
+			purchase_units: buildPurchaseUnits(optionText, pending),
 			application_context: {
 				user_action: "PAY_NOW",
 				shipping_preference: "NO_SHIPPING",
 				brand_name: "Jannat Booking",
 			},
 		});
+		if (!serverOrder?.id) {
+			throw new Error(isArabic ? "\u062a\u0639\u0630\u0631 \u0625\u0646\u0634\u0627\u0621 \u0637\u0644\u0628 Apple Pay." : "Could not create an Apple Pay payment order.");
+		}
+		return serverOrder.id;
 	};
 
 	const onApprove = async (data) => {
@@ -270,8 +870,9 @@ function JannatPayPalButtons({
 				pendingReservationId: pendingRef.current?.pendingReservationId || null,
 				confirmation_number: pendingRef.current?.confirmation_number || null,
 				paypal: {
-					order_id: data?.orderID,
+					order_id: data?.orderID || data?.orderId || data?.id,
 					expectedUsdAmount: selectedUsdAmount.toFixed(2),
+					cmid: getPayPalMetadataId(),
 					mode: "capture",
 					invoice_id: pendingRef.current?.invoice_id || null,
 				},
@@ -290,22 +891,56 @@ function JannatPayPalButtons({
 
 	if (!allowInteract) return null;
 
+	if (isRejected) {
+		return (
+			<div className="paypal-box">
+				<Alert
+					type="error"
+					showIcon
+					title={isArabic ? "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u062f\u0641\u0639" : "Payment module could not load"}
+					description={
+						isArabic
+							? "\u064a\u0631\u062c\u0649 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629. \u0625\u0630\u0627 \u0627\u0633\u062a\u0645\u0631\u062a \u0627\u0644\u0645\u0634\u0643\u0644\u0629\u060c \u0639\u0637\u0644 \u0645\u0627\u0646\u0639 \u0627\u0644\u0625\u0639\u0644\u0627\u0646\u0627\u062a \u0623\u0648 \u062c\u0631\u0628 \u0634\u0628\u0643\u0629 \u0645\u062e\u062a\u0644\u0641\u0629."
+							: "Please try again. If this continues, disable ad blockers or try a different network."
+					}
+				/>
+				<div className="paypal-recovery-actions">
+					{!walletOnly ? (
+						<Button type="primary" onClick={onUseWalletOnly}>
+							{isArabic ? "\u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u0628\u0623\u0632\u0631\u0627\u0631 PayPal \u0641\u0642\u0637" : "Continue with PayPal buttons only"}
+						</Button>
+					) : null}
+					<Button onClick={onReloadPayment}>
+						{isArabic ? "\u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u062f\u0641\u0639" : "Reload payment"}
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="paypal-box">
 			<div className="amount-bar">
-				{isArabic ? "ستدفع الآن" : "You will pay now"}: <strong dir="ltr" className="ltr-value">SAR {selectedSarAmount.toFixed(2)} · USD {selectedUsdAmount.toFixed(2)}</strong>
+				<span>{isArabic ? "ستدفع الآن" : "You will pay now"}</span>
+				{payPalChargeNode}
 			</div>
 			<PayPalStatus />
 			<PayPalButtons
 				fundingSource="paypal"
 				style={{ layout: "vertical", label: "paypal" }}
+				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
 				onCancel={cancelPending}
 				onError={async (error) => {
 					await cancelPending();
-					if (!error?.silent) {
-						message.error(isArabic ? "حدث خطأ في PayPal." : "PayPal payment error.");
+					if (!shouldSuppressPaymentError(error)) {
+						message.open({
+							key: "checkout-payment-error",
+							type: "error",
+							content: paypalErrorMessage(error, isArabic),
+							duration: 4,
+						});
 					}
 				}}
 				disabled={!allowInteract}
@@ -313,17 +948,134 @@ function JannatPayPalButtons({
 			<PayPalButtons
 				fundingSource="card"
 				style={{ layout: "vertical", label: "pay" }}
+				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
 				onCancel={cancelPending}
 				onError={async (error) => {
 					await cancelPending();
-					if (!error?.silent) {
-						message.error(isArabic ? "حدث خطأ في الدفع بالبطاقة." : "Card payment error.");
+					if (!shouldSuppressPaymentError(error)) {
+						message.open({
+							key: "checkout-payment-error",
+							type: "error",
+							content: paypalErrorMessage(error, isArabic, "card"),
+							duration: 4,
+						});
 					}
 				}}
 				disabled={!allowInteract}
 			/>
+			<div className="paypal-powered-note">
+				{isArabic ? "\u0645\u062f\u0639\u0648\u0645 \u0645\u0646" : "Powered by"} <b>PayPal</b>
+			</div>
+			<ApplePayCheckoutButton
+				allowInteract={allowInteract}
+				isArabic={isArabic}
+				selectedPaymentOption={selectedPaymentOption}
+				selectedUsdAmount={selectedUsdAmount}
+				selectedSarAmount={selectedSarAmount}
+				createApplePayOrder={createApplePayOrder}
+				onApplePayApproved={onApprove}
+				onBeforeStart={validateCardSubmitReadiness}
+				chargeLabel={payPalChargeNode}
+			/>
+			{isResolved && !walletOnly ? (() => {
+				let supportsCardFields = false;
+				try {
+					supportsCardFields = Boolean(window?.paypal?.CardFields);
+					if (
+						supportsCardFields &&
+						typeof window.paypal.CardFields.isEligible === "function"
+					) {
+						supportsCardFields = Boolean(window.paypal.CardFields.isEligible());
+					}
+				} catch (_error) {
+					supportsCardFields = false;
+				}
+
+				return supportsCardFields ? (
+					<div className="paypal-card-fields-panel" dir={isArabic ? "rtl" : "ltr"}>
+						<div className="paypal-card-fields-head">
+							<CreditCard size={18} />
+							<div>
+								<strong>{isArabic ? "\u0627\u062f\u0641\u0639 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Pay directly by card"}</strong>
+								<span>{isArabic ? "\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062a\u062f\u062e\u0644 \u062f\u0627\u062e\u0644 \u062d\u0642\u0648\u0644 PayPal \u0627\u0644\u0622\u0645\u0646\u0629." : "Card details stay inside PayPal secure fields."}</span>
+							</div>
+						</div>
+						<PayPalCardFieldsProvider
+							createOrder={createOrder}
+							onApprove={onApprove}
+							onError={async (error) => {
+								await cancelPending();
+								if (!shouldSuppressPaymentError(error)) {
+									message.open({
+										key: "checkout-payment-error",
+										type: "error",
+										content: paypalErrorMessage(error, isArabic, "card"),
+										duration: 4,
+									});
+								}
+							}}
+						>
+							<PayPalCardFieldsForm>
+								<div className="paypal-card-field full">
+									<label>{isArabic ? "\u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Cardholder name"}</label>
+									<div className="paypal-hosted-field">
+										<PayPalNameField />
+									</div>
+								</div>
+								<div className="paypal-card-field full">
+									<label>{isArabic ? "\u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Card number"}</label>
+									<div className="paypal-hosted-field">
+										<PayPalNumberField />
+									</div>
+								</div>
+								<div className="paypal-card-fields-row">
+									<div className="paypal-card-field">
+										<label>{isArabic ? "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621" : "Expiry date"}</label>
+										<div className="paypal-hosted-field">
+											<PayPalExpiryField />
+										</div>
+									</div>
+									<div className="paypal-card-field">
+										<label>{isArabic ? "\u0631\u0645\u0632 CVV" : "CVV"}</label>
+										<div className="paypal-hosted-field">
+											<PayPalCVVField />
+										</div>
+									</div>
+								</div>
+							</PayPalCardFieldsForm>
+							<CardFieldsSubmitButton
+								allowInteract={allowInteract}
+								labels={{
+									pay: isArabic
+										? `\u0627\u062f\u0641\u0639 ${payButtonAmountLabel} \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629`
+										: `Pay ${payButtonAmountLabel} by card`,
+									processing: isArabic ? "\u062c\u0627\u0631\u064a \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u062f\u0641\u0639..." : "Processing payment...",
+									incomplete: isArabic
+										? "\u064a\u0631\u062c\u0649 \u0625\u0643\u0645\u0627\u0644 \u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621\u060c \u0648\u0631\u0645\u0632 CVV."
+										: "Please complete the cardholder name, card number, expiry date, and CVV.",
+									failed: paypalErrorMessage(null, isArabic, "card"),
+								}}
+								onBeforeSubmit={validateCardSubmitReadiness}
+								shouldSuppressError={shouldSuppressPaymentError}
+							/>
+						</PayPalCardFieldsProvider>
+					</div>
+				) : (
+					<Alert
+						type="info"
+						showIcon
+						className="paypal-card-fields-unavailable"
+						message={isArabic ? "\u0627\u0644\u062f\u0641\u0639 \u062f\u0627\u062e\u0644 \u0627\u0644\u0635\u0641\u062d\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0644\u0647\u0630\u0647 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629" : "Inline card fields are not available for this attempt"}
+						description={
+							isArabic
+								? "\u064a\u0631\u062c\u0649 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0632\u0631 \u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u062f\u0641\u0639 \u0623\u0639\u0644\u0627\u0647. \u0642\u062f \u064a\u062e\u062a\u0644\u0641 \u0638\u0647\u0648\u0631 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062d\u0633\u0628 \u0625\u0639\u062f\u0627\u062f\u0627\u062a PayPal\u060c \u0627\u0644\u0628\u0644\u062f\u060c \u0623\u0648 \u0627\u0644\u0645\u062a\u0635\u0641\u062d."
+								: "Please use the card payment button above. Card-field availability can vary by PayPal account, country, browser, or sandbox/live configuration."
+						}
+					/>
+				);
+			})() : null}
 		</div>
 	);
 }
@@ -342,18 +1094,24 @@ export default function CheckoutClient({ website = {} }) {
 		removeCartItem,
 		nightsBetween,
 		clearCart,
+		currency,
 		formatCurrency,
 	} = useJannatApp();
 	const [form] = Form.useForm();
 	const [guestAgreed, setGuestAgreed] = useState(false);
 	const [selectedPaymentOption, setSelectedPaymentOption] = useState("");
+	const [checkoutIssue, setCheckoutIssue] = useState(null);
 	const [convertedAmounts, setConvertedAmounts] = useState({
 		totalUSD: "0.00",
 		depositUSD: "0.00",
 		totalRoomsPricePerNightUSD: "0.00",
 	});
+	const [paymentConversionError, setPaymentConversionError] = useState(false);
 	const [paypalToken, setPaypalToken] = useState(null);
 	const [loadingPayPal, setLoadingPayPal] = useState(false);
+	const [paypalWalletOnly, setPaypalWalletOnly] = useState(false);
+	const [paypalReloadKey, setPaypalReloadKey] = useState(0);
+	const [applePayCapable, setApplePayCapable] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 
 	const totalSar = useMemo(() => cartTotal(cart), [cart]);
@@ -366,6 +1124,62 @@ export default function CheckoutClient({ website = {} }) {
 		...defaultGuestPaymentAcceptance,
 		...(firstHotel.guestPaymentAcceptance || {}),
 	};
+	const checkoutFieldClass = useCallback(
+		(field, base = "") =>
+			[base, checkoutIssue?.field === field ? "checkout-field-attention" : ""].filter(Boolean).join(" "),
+		[checkoutIssue?.field]
+	);
+	const showCheckoutValidationError = useCallback(
+		(field, customMessage) => {
+			const content = customMessage || checkoutValidationMessage(field, isArabic);
+			setCheckoutIssue({ field, content });
+			message.open({
+				key: CHECKOUT_VALIDATION_MESSAGE_KEY,
+				type: "error",
+				content,
+				duration: 4,
+			});
+			focusCheckoutIssue(field);
+		},
+		[isArabic, message]
+	);
+	const handleCheckoutValuesChange = useCallback((_changed, allValues) => {
+		setCheckoutIssue((current) => {
+			if (!current || !checkoutFormIssueFields.has(current.field)) return current;
+			return isCheckoutFormIssueResolved(current.field, allValues) ? null : current;
+		});
+	}, []);
+	const handleTermsChange = useCallback((event) => {
+		const checked = Boolean(event.target.checked);
+		setGuestAgreed(checked);
+		if (checked) {
+			trackConversion(
+				"termsAccepted",
+				{
+					content_name: "Checkout terms",
+					checkout_context: "cart_checkout",
+					value: totalSar || undefined,
+					currency: totalSar ? "SAR" : undefined,
+				},
+				["Terms And Conditions Accepted"]
+			);
+			setCheckoutIssue((current) => (current?.field === "terms" ? null : current));
+		}
+	}, [totalSar]);
+	const handlePaymentOptionChange = useCallback((nextPaymentOption) => {
+		setSelectedPaymentOption(nextPaymentOption);
+		trackConversion(
+			"paymentOption",
+			{
+				payment_type: nextPaymentOption,
+				checkout_context: "cart_checkout",
+				value: totalSar || undefined,
+				currency: totalSar ? "SAR" : undefined,
+			},
+			["Selected Payment Option"]
+		);
+		setCheckoutIssue((current) => (current?.field === "paymentOption" ? null : current));
+	}, [totalSar]);
 
 	useEffect(() => {
 		if (!cart.length || !totalSar) return;
@@ -387,6 +1201,15 @@ export default function CheckoutClient({ website = {} }) {
 	}, [cart, totalSar]);
 
 	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const session = window.ApplePaySession;
+		const canMakePayments =
+			Boolean(session) &&
+			(typeof session.canMakePayments !== "function" || session.canMakePayments());
+		setApplePayCapable(canMakePayments);
+	}, []);
+
+	useEffect(() => {
 		if (!selectedPaymentOption) {
 			if (acceptance.acceptDeposit !== false) setSelectedPaymentOption("acceptDeposit");
 			else if (acceptance.acceptPayWholeAmount !== false) setSelectedPaymentOption("acceptPayWholeAmount");
@@ -394,28 +1217,68 @@ export default function CheckoutClient({ website = {} }) {
 		}
 	}, [acceptance.acceptDeposit, acceptance.acceptPayWholeAmount, acceptance.acceptReserveNowPayInHotel, selectedPaymentOption]);
 
+	const syncCheckoutFieldToQuery = useCallback((field, value) => {
+		const paramKey = checkoutQueryFields[field];
+		if (!paramKey || typeof window === "undefined") return;
+
+		const normalized = normalizeCheckoutQueryValue(field, value);
+		const url = new URL(window.location.href);
+		if (normalized) {
+			url.searchParams.set(paramKey, normalized);
+		} else {
+			url.searchParams.delete(paramKey);
+		}
+
+		(checkoutQueryAliases[field] || [])
+			.filter((alias) => alias !== paramKey)
+			.forEach((alias) => url.searchParams.delete(alias));
+
+		window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+	}, []);
+
+	useEffect(() => {
+		const queryValues = checkoutValuesFromQuery();
+		if (Object.keys(queryValues).length) {
+			form.setFieldsValue(queryValues);
+		}
+	}, [form]);
+
 	useEffect(() => {
 		let cancelled = false;
 		const load = async () => {
-			if (!totalSar) return;
+			if (!totalSar) {
+				setPaymentConversionError(false);
+				setConvertedAmounts({
+					depositUSD: "0.00",
+					totalUSD: "0.00",
+					totalRoomsPricePerNightUSD: "0.00",
+				});
+				return;
+			}
 			try {
 				const rows = await currencyConversion([totalSar * 0.15, totalSar, totalSar]);
-				const totalUSD = safeNumber(rows?.[1]?.amountInUSD, totalSar * 0.27);
+				const totalUSD = Number(rows?.[1]?.amountInUSD);
+				const roomsUSD = Number(rows?.[2]?.amountInUSD);
+				if (!(totalUSD > 0) || !(roomsUSD > 0)) {
+					throw new Error("Currency conversion did not return valid USD amounts.");
+				}
 				if (!cancelled) {
 					setConvertedAmounts({
 						depositUSD: toMoney(totalUSD * 0.15).toFixed(2),
 						totalUSD: toMoney(totalUSD).toFixed(2),
-						totalRoomsPricePerNightUSD: toMoney(safeNumber(rows?.[2]?.amountInUSD, totalSar * 0.27)).toFixed(2),
+						totalRoomsPricePerNightUSD: toMoney(roomsUSD).toFixed(2),
 					});
+					setPaymentConversionError(false);
 				}
 			} catch (error) {
-				const fallbackUsd = totalSar * 0.27;
+				console.error("PayPal currency conversion failed:", error);
 				if (!cancelled) {
 					setConvertedAmounts({
-						depositUSD: toMoney(fallbackUsd * 0.15).toFixed(2),
-						totalUSD: toMoney(fallbackUsd).toFixed(2),
-						totalRoomsPricePerNightUSD: toMoney(fallbackUsd).toFixed(2),
+						depositUSD: "0.00",
+						totalUSD: "0.00",
+						totalRoomsPricePerNightUSD: "0.00",
 					});
+					setPaymentConversionError(true);
 				}
 			}
 		};
@@ -432,7 +1295,10 @@ export default function CheckoutClient({ website = {} }) {
 			setLoadingPayPal(true);
 			try {
 				const token = await getPayPalClientToken();
-				if (!cancelled) setPaypalToken(token);
+				if (!cancelled) {
+					setPaypalToken(token);
+					setPaypalWalletOnly(false);
+				}
 			} catch (error) {
 				console.error("PayPal token failed:", error);
 				if (!cancelled) setPaypalToken(null);
@@ -469,41 +1335,41 @@ export default function CheckoutClient({ website = {} }) {
 	const validateCheckoutDetails = useCallback(
 		({ requirePaymentOption = false } = {}) => {
 			if (!cart.length) {
-				message.error(isArabic ? "السلة فارغة." : "Your cart is empty.");
+				showCheckoutValidationError("cart");
 				return null;
 			}
 			if (!oneHotelOnly) {
-				message.error(isArabic ? "يرجى حجز غرف من فندق واحد فقط في كل طلب." : "Please book rooms from one hotel per reservation.");
+				showCheckoutValidationError("hotel");
 				return null;
 			}
 			if (requirePaymentOption && !selectedPaymentOption) {
-				message.error(isArabic ? "يرجى اختيار طريقة الدفع." : "Please choose how you would like to pay.");
+				showCheckoutValidationError("paymentOption");
 				return null;
 			}
 			if (!guestAgreed) {
-				message.error(isArabic ? "يرجى الموافقة على الشروط والأحكام." : "Please accept the Terms & Conditions.");
+				showCheckoutValidationError("terms");
 				return null;
 			}
 			const details = getCustomerDetails();
 			if (!details.name || details.name.split(/\s+/).length < 2) {
-				message.error(isArabic ? "يرجى كتابة الاسم الكامل." : "Please enter your full name, first and last name.");
+				showCheckoutValidationError("fullName");
 				return null;
 			}
 			if (!/^\+?[0-9\s-]{5,}$/.test(details.phone)) {
-				message.error(isArabic ? "يرجى كتابة رقم جوال صحيح." : "Please enter a valid phone number.");
+				showCheckoutValidationError("phone");
 				return null;
 			}
 			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email)) {
-				message.error(isArabic ? "يرجى كتابة بريد إلكتروني صحيح." : "Please enter a valid email address.");
+				showCheckoutValidationError("email");
 				return null;
 			}
 			if (!details.nationality) {
-				message.error(isArabic ? "يرجى كتابة الجنسية." : "Please add your nationality.");
+				showCheckoutValidationError("nationality");
 				return null;
 			}
 			return details;
 		},
-		[cart.length, getCustomerDetails, guestAgreed, isArabic, oneHotelOnly, selectedPaymentOption]
+		[cart.length, getCustomerDetails, guestAgreed, oneHotelOnly, selectedPaymentOption, showCheckoutValidationError]
 	);
 
 	const buildReservationPayload = useCallback(
@@ -634,11 +1500,19 @@ export default function CheckoutClient({ website = {} }) {
 				{
 					value: payload.total_amount,
 					currency: "SAR",
-					transaction_id: response?.data?._id || response?.reservation?._id || undefined,
-					payment_type: "pay_in_hotel",
-				},
-				["Reservation Request Submitted"]
-			);
+				transaction_id: response?.data?._id || response?.reservation?._id || undefined,
+				payment_type: "pay_in_hotel",
+				checkout_context: "cart_checkout",
+				items: cart.map((item) => ({
+					item_id: item.roomId || item.id,
+					item_name: item.roomName,
+					item_category: item.hotelName,
+					quantity: item.amount,
+					price: item.price,
+				})),
+			},
+			["Reservation Request Submitted"]
+		);
 			clearCart();
 			const params = new URLSearchParams({
 				name: payload.customerDetails.name,
@@ -675,7 +1549,7 @@ export default function CheckoutClient({ website = {} }) {
 		message.success(response?.message || (isArabic ? "تم إنشاء الحجز بنجاح." : "Reservation created successfully."));
 		const reservation = response?.data || response?.reservation || {};
 		trackConversion(
-			"reservationRequest",
+			"reservationPayment",
 			{
 				value: payload.total_amount,
 				currency: "SAR",
@@ -685,6 +1559,19 @@ export default function CheckoutClient({ website = {} }) {
 					reservation._id ||
 					undefined,
 				payment_type: option,
+				checkout_context: "cart_checkout",
+				paypal_currency: "USD",
+				paypal_value:
+					option === "acceptDeposit"
+						? paypalPayload?.convertedAmounts?.depositUSD
+						: paypalPayload?.convertedAmounts?.totalUSD,
+				items: cart.map((item) => ({
+					item_id: item.roomId || item.id,
+					item_name: item.roomName,
+					item_category: item.hotelName,
+					quantity: item.amount,
+					price: item.price,
+				})),
 			},
 			["Reservation Paid"]
 		);
@@ -736,28 +1623,80 @@ export default function CheckoutClient({ website = {} }) {
 							title={isArabic ? "يرجى اختيار غرف من فندق واحد فقط لكل حجز." : "Please keep one hotel per reservation."}
 						/>
 					) : null}
-					<Form form={form} layout="vertical" requiredMark={false}>
-						<Form.Item name="fullName" label={t("fullName")} rules={[{ required: true, message: t("fullName") }]}>
-							<Input size="large" />
+					<Form
+						form={form}
+						layout="vertical"
+						requiredMark={false}
+						className="checkout-fields-grid"
+						onValuesChange={handleCheckoutValuesChange}
+					>
+						<Form.Item
+							name="fullName"
+							label={t("fullName")}
+							rules={[{ required: true, message: t("fullName") }]}
+							className={checkoutFieldClass("fullName")}
+							data-checkout-field="fullName"
+						>
+							<Input
+								id="checkout-full-name"
+								size="large"
+								status={checkoutIssue?.field === "fullName" ? "error" : undefined}
+								aria-invalid={checkoutIssue?.field === "fullName"}
+								onBlur={(event) => syncCheckoutFieldToQuery("fullName", event.target.value)}
+							/>
 						</Form.Item>
-						<Form.Item name="phone" label={t("phone")} rules={[{ required: true, message: t("phone") }]}>
-							<Input size="large" dir="ltr" inputMode="tel" onChange={(event) => form.setFieldValue("phone", normalizePhoneInput(event.target.value))} />
+						<Form.Item
+							name="phone"
+							label={t("phone")}
+							rules={[{ required: true, message: t("phone") }]}
+							className={checkoutFieldClass("phone")}
+							data-checkout-field="phone"
+						>
+							<Input
+								id="checkout-phone"
+								size="large"
+								dir="ltr"
+								inputMode="tel"
+								status={checkoutIssue?.field === "phone" ? "error" : undefined}
+								aria-invalid={checkoutIssue?.field === "phone"}
+								onBlur={(event) => syncCheckoutFieldToQuery("phone", event.target.value)}
+								onChange={(event) => form.setFieldValue("phone", normalizePhoneInput(event.target.value))}
+							/>
 						</Form.Item>
-						<Form.Item name="email" label={t("emailAddress")} rules={[{ required: true, type: "email", message: t("emailAddress") }]}>
-							<Input size="large" dir="ltr" type="email" />
+						<Form.Item
+							name="email"
+							label={t("emailAddress")}
+							rules={[{ required: true, type: "email", message: t("emailAddress") }]}
+							className={checkoutFieldClass("email")}
+							data-checkout-field="email"
+						>
+							<Input
+								id="checkout-email"
+								size="large"
+								dir="ltr"
+								type="email"
+								status={checkoutIssue?.field === "email" ? "error" : undefined}
+								aria-invalid={checkoutIssue?.field === "email"}
+								onBlur={(event) => syncCheckoutFieldToQuery("email", event.target.value)}
+							/>
 						</Form.Item>
-						<Form.Item name="nationality" label={isArabic ? "الجنسية" : "Nationality"} rules={[{ required: true, message: isArabic ? "الجنسية" : "Nationality" }]}>
-							<Input size="large" />
+						<Form.Item name="nationality" label={isArabic ? "الجنسية" : "Nationality"} rules={[{ required: true, message: isArabic ? "يرجى اختيار الجنسية." : "Please select your nationality." }]}>
+							<Select
+								id="checkout-nationality"
+								allowClear
+								showSearch
+								size="large"
+								className={`checkout-nationality-select${checkoutIssue?.field === "nationality" ? " checkout-field-attention" : ""}`}
+								classNames={{ popup: { root: "checkout-nationality-dropdown" } }}
+								optionFilterProp="label"
+								filterOption={filterCountryOption}
+								status={checkoutIssue?.field === "nationality" ? "error" : undefined}
+								onChange={(value) => syncCheckoutFieldToQuery("nationality", value || "")}
+								options={COUNTRY_SELECT_OPTIONS}
+								placeholder={isArabic ? "اختر الجنسية" : "Select nationality"}
+							/>
 						</Form.Item>
-						<div className="checkout-mini-grid">
-							<Form.Item name="passport" label={isArabic ? "رقم الجواز" : "Passport"} initialValue="Not Provided">
-								<Input size="large" dir="ltr" />
-							</Form.Item>
-							<Form.Item name="passportExpiry" label={isArabic ? "انتهاء الجواز" : "Passport expiry"} initialValue="2029-12-20">
-								<Input size="large" dir="ltr" placeholder="YYYY-MM-DD" />
-							</Form.Item>
-						</div>
-						<Form.Item name="notes" label={t("notes")}>
+						<Form.Item name="notes" label={t("notes")} className="checkout-notes-field">
 							<Input.TextArea rows={3} placeholder={t("notesPlaceholder")} />
 						</Form.Item>
 					</Form>
@@ -765,14 +1704,20 @@ export default function CheckoutClient({ website = {} }) {
 					<PaymentOptions
 						acceptance={acceptance}
 						selected={selectedPaymentOption}
-						setSelected={setSelectedPaymentOption}
+						setSelected={handlePaymentOptionChange}
 						totalSar={totalSar}
 						totalUsd={safeNumber(convertedAmounts.totalUSD, 0)}
 						isArabic={isArabic}
 						onTouched={createUncompletedDocument}
+						hasError={checkoutIssue?.field === "paymentOption"}
+						selectedCurrency={currency}
+						formatCurrency={formatCurrency}
 					/>
-					<div className="terms-row">
-						<Checkbox checked={guestAgreed} onChange={(event) => setGuestAgreed(event.target.checked)}>
+					<div
+						className={`terms-row${checkoutIssue?.field === "terms" ? " checkout-field-attention" : ""}`}
+						data-checkout-field="terms"
+					>
+						<Checkbox checked={guestAgreed} onChange={handleTermsChange} aria-invalid={checkoutIssue?.field === "terms"}>
 							{isArabic ? "أوافق على الشروط والأحكام" : "I accept the Terms & Conditions"}
 						</Checkbox>
 					</div>
@@ -792,12 +1737,24 @@ export default function CheckoutClient({ website = {} }) {
 						<div className="paypal-loading">
 							<Spin />
 						</div>
+					) : paymentConversionError ? (
+						<Alert
+							type="error"
+							showIcon
+							title={isArabic ? "تعذر تحديث سعر الصرف للدفع." : "Payment exchange rate is unavailable."}
+							description={
+								isArabic
+									? "يرجى المحاولة مرة أخرى بعد قليل. لن يتم إنشاء أي دفعة عبر PayPal بدون سعر صرف مباشر من الريال السعودي إلى الدولار الأمريكي."
+									: "Please try again in a moment. PayPal payment will not start without a live SAR to USD exchange rate."
+							}
+						/>
 					) : paypalClientId ? (
 						<PayPalScriptProvider
+							key={`${paypalClientId}-${paypalToken?.env || "env"}-${paypalWalletOnly ? "buttons" : "cardfields"}-${applePayCapable ? "applepay" : "noapple"}-${paypalReloadKey}-${isArabic ? "ar" : "en"}`}
 							options={{
 								"client-id": paypalClientId,
-								...(paypalToken?.clientToken ? { "data-client-token": paypalToken.clientToken } : {}),
-								components: "buttons",
+								...(paypalToken?.clientToken && !paypalWalletOnly ? { "data-client-token": paypalToken.clientToken } : {}),
+								components: `${paypalToken?.clientToken && !paypalWalletOnly ? "buttons,card-fields" : "buttons"}${applePayCapable ? ",applepay" : ""}`,
 								currency: "USD",
 								intent: "capture",
 								commit: true,
@@ -816,6 +1773,15 @@ export default function CheckoutClient({ website = {} }) {
 								getPendingReservationPayload={getPendingReservationPayload}
 								onPayApproved={handlePayPalApproved}
 								onTouched={createUncompletedDocument}
+								onValidationError={showCheckoutValidationError}
+								selectedCurrency={currency}
+								formatCurrency={formatCurrency}
+								walletOnly={paypalWalletOnly || !paypalToken?.clientToken}
+								onUseWalletOnly={() => setPaypalWalletOnly(true)}
+								onReloadPayment={() => {
+									setPaypalWalletOnly(false);
+									setPaypalReloadKey((current) => current + 1);
+								}}
 							/>
 						</PayPalScriptProvider>
 					) : (
@@ -843,6 +1809,9 @@ export default function CheckoutClient({ website = {} }) {
 					<div className="checkout-items">
 						{cart.map((item) => {
 							const nights = nightsBetween(item.checkIn, item.checkOut);
+							const packageHijriLabel = isArabic
+								? item.packageMeta?.hijriLabelAr
+								: item.packageMeta?.hijriLabelEn || item.packageMeta?.hijriLabelAr;
 							return (
 								<article key={`${item.id}-${item.checkIn}-${item.checkOut}`}>
 									<div className="checkout-item-image">
@@ -851,7 +1820,7 @@ export default function CheckoutClient({ website = {} }) {
 												src={item.image}
 												alt={item.roomName}
 												fill
-												sizes="96px"
+												sizes="82px"
 												quality={68}
 											/>
 										) : (
@@ -864,6 +1833,12 @@ export default function CheckoutClient({ website = {} }) {
 											<Hotel size={15} />
 											{item.hotelName}
 										</span>
+										{packageHijriLabel ? (
+											<span className="checkout-package-hijri">
+												<CalendarDays size={14} />
+												{packageHijriLabel}
+											</span>
+										) : null}
 										<small>
 											<CalendarDays size={14} />
 											<bdi dir="ltr" className="ltr-value">

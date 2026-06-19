@@ -33,6 +33,7 @@ const minPrice = (hotel = {}) => {
 	return prices.length ? Math.min(...prices) : Number.MAX_SAFE_INTEGER;
 };
 const PAGE_SIZE = 15;
+const DEFAULT_HOTEL_DESTINATION = "Makkah";
 
 export default function HotelExplorer({ hotels = [] }) {
 	const { t, isArabic } = useJannatApp();
@@ -41,7 +42,7 @@ export default function HotelExplorer({ hotels = [] }) {
 		[isArabic, t]
 	);
 	const [query, setQuery] = useState("");
-	const [destination, setDestination] = useState("All");
+	const [destination, setDestination] = useState(DEFAULT_HOTEL_DESTINATION);
 	const [sort, setSort] = useState("recommended");
 	const [page, setPage] = useState(1);
 

@@ -1,4 +1,4 @@
-import { getHotels } from "../lib/api";
+import { getDealHotels, getHotels } from "../lib/api";
 import { BRAND_URL } from "../lib/constants";
 import { slugifyHotel } from "../lib/format";
 
@@ -6,7 +6,6 @@ const publicRoutes = [
 	"",
 	"/our-hotels",
 	"/rooms",
-	"/jannat-offers-monthly-reservations",
 	"/about",
 	"/contact",
 	"/terms-conditions?tab=guest",
@@ -17,8 +16,11 @@ const publicRoutes = [
 
 export default async function sitemap() {
 	const now = new Date();
-	const hotels = await getHotels();
-	const staticEntries = publicRoutes.map((route) => ({
+	const [hotels, dealHotels] = await Promise.all([getHotels(), getDealHotels()]);
+	const routes = Array.isArray(dealHotels) && dealHotels.length
+		? [...publicRoutes.slice(0, 3), "/jannat-offers-monthly-reservations", ...publicRoutes.slice(3)]
+		: publicRoutes;
+	const staticEntries = routes.map((route) => ({
 		url: `${BRAND_URL}${route}`,
 		lastModified: now,
 		changeFrequency: route === "" || route === "/our-hotels" ? "daily" : "weekly",

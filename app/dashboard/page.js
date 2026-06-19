@@ -1,4 +1,4 @@
-import UtilityShell from "../../components/UtilityShell";
+import DashboardClient from "../../components/DashboardClient";
 import { BRAND_NAME } from "../../lib/constants";
 
 export const metadata = {
@@ -8,13 +8,5 @@ export const metadata = {
 };
 
 export default function DashboardPage() {
-	return (
-		<UtilityShell
-			eyebrow="Account"
-			title="Guest dashboard"
-			copy="Sign in to review your Jannat Booking account and reservation requests."
-			primaryHref="/signin"
-			primaryLabel="Sign in"
-		/>
-	);
+	return <DashboardClient />;
 }

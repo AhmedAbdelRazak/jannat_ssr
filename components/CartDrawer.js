@@ -16,6 +16,8 @@ const cartDate = (value, fallbackDays = 1) => {
 	return date.isValid() ? date : dayjs().add(fallbackDays, "day");
 };
 
+const isLockedCartItem = (item = {}) => Boolean(item.lockDates || item.datesLocked);
+
 export default function CartDrawer() {
 	const {
 		cart,
@@ -33,7 +35,9 @@ export default function CartDrawer() {
 	} = useJannatApp();
 	const today = dayjs().startOf("day");
 	const stayDatesLabel = isArabic ? "\u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0625\u0642\u0627\u0645\u0629" : "Stay dates";
-	const firstItem = cart[0] || {};
+	const editableDateItems = cart.filter((item) => !isLockedCartItem(item));
+	const lockedPackagesCount = cart.filter((item) => isLockedCartItem(item)).length;
+	const firstItem = editableDateItems[0] || cart[0] || {};
 	const cartCheckIn = cartDate(firstItem.checkIn, 1);
 	const cartCheckOut = dayjs(firstItem.checkOut).isAfter(cartCheckIn)
 		? cartDate(firstItem.checkOut, 4)
@@ -64,7 +68,7 @@ export default function CartDrawer() {
 				<span className="cart-title">
 					<ShoppingCart size={18} />
 					{t("yourCart")}
-					<Badge count={totals.rooms} color="#0f8f70" />
+					<Badge className="cart-title-badge" count={totals.rooms} color="#0f8f70" />
 				</span>
 			}
 			open={cartOpen}
@@ -74,57 +78,90 @@ export default function CartDrawer() {
 		>
 			{cart.length ? (
 				<div className="cart-drawer-body">
-					<div className="cart-date-editor cart-date-editor-shared">
-						<label>
-							<CalendarDays size={14} />
-							{stayDatesLabel}
-						</label>
-						<div className="cart-date-picker-grid">
-							<div className="cart-date-field">
-								<span>{t("checkIn")}</span>
-								<DatePicker
-									className="cart-date-picker"
-									value={cartCheckIn}
-									format={DATE_FORMAT}
-									allowClear={false}
-									disabledDate={(current) => current && current < today}
-									onChange={handleCheckInChange}
-									placement={isArabic ? "bottomRight" : "bottomLeft"}
-								/>
+					{editableDateItems.length ? (
+						<div className="cart-date-editor cart-date-editor-shared">
+							<label>
+								<CalendarDays size={14} />
+								{stayDatesLabel}
+							</label>
+							<div className="cart-date-picker-grid">
+								<div className="cart-date-field">
+									<span>{t("checkIn")}</span>
+									<DatePicker
+										className="cart-date-picker"
+										value={cartCheckIn}
+										format={DATE_FORMAT}
+										allowClear={false}
+										disabledDate={(current) => current && current < today}
+										onChange={handleCheckInChange}
+										placement={isArabic ? "bottomRight" : "bottomLeft"}
+									/>
+								</div>
+								<div className="cart-date-field">
+									<span>{t("checkOut")}</span>
+									<DatePicker
+										className="cart-date-picker"
+										value={cartCheckOut}
+										format={DATE_FORMAT}
+										allowClear={false}
+										disabledDate={(current) => current && current <= cartCheckIn.startOf("day")}
+										onChange={handleCheckOutChange}
+										placement={isArabic ? "bottomRight" : "bottomLeft"}
+									/>
+								</div>
 							</div>
-							<div className="cart-date-field">
-								<span>{t("checkOut")}</span>
-								<DatePicker
-									className="cart-date-picker"
-									value={cartCheckOut}
-									format={DATE_FORMAT}
-									allowClear={false}
-									disabledDate={(current) => current && current <= cartCheckIn.startOf("day")}
-									onChange={handleCheckOutChange}
-									placement={isArabic ? "bottomRight" : "bottomLeft"}
-								/>
-							</div>
+							{lockedPackagesCount ? (
+								<p className="cart-date-lock-note">
+									{isArabic
+										? "\u062a\u0628\u0642\u0649 \u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0628\u0627\u0642\u0627\u062a \u0627\u0644\u062b\u0627\u0628\u062a\u0629 \u0643\u0645\u0627 \u0647\u064a."
+										: "Fixed package dates stay unchanged."}
+								</p>
+							) : null}
 						</div>
-					</div>
+					) : (
+						<div className="cart-date-lock-note locked-only">
+							<CalendarDays size={14} />
+							{isArabic
+								? "\u0647\u0630\u0647 \u0627\u0644\u0628\u0627\u0642\u0627\u062a \u0644\u0647\u0627 \u062a\u0648\u0627\u0631\u064a\u062e \u0645\u062d\u062f\u062f\u0629."
+								: "These packages have fixed stay dates."}
+						</div>
+					)}
 					<div className="cart-items">
 						{cart.map((item) => {
 							const nights = nightsBetween(item.checkIn, item.checkOut);
+							const isPackage = Boolean(item.fromPackagesOffers || item.packageMeta);
+							const packageHijriLabel = isArabic
+								? item.packageMeta?.hijriLabelAr
+								: item.packageMeta?.hijriLabelEn || item.packageMeta?.hijriLabelAr;
 							return (
-								<article className="cart-row" key={item.id}>
+								<article className={`cart-row${isPackage ? " package-row" : ""}`} key={item.id}>
 									{item.image ? (
 										<OptimizedImage
 											className="cart-row-image"
 											src={item.image}
 											alt={item.roomName}
-											width={92}
-											height={92}
-											sizes="92px"
+											width={82}
+											height={82}
+											sizes="82px"
 											quality={68}
 										/>
 									) : null}
 									<div className="cart-row-content">
 										<strong>{item.roomName}</strong>
+										{isPackage ? (
+											<em className="cart-package-badge">
+												{item.packageMeta?.type === "monthly"
+													? isArabic ? "\u0628\u0627\u0642\u0629 \u0634\u0647\u0631\u064a\u0629" : "Monthly package"
+													: isArabic ? "\u0639\u0631\u0636 \u062e\u0627\u0635" : "Special offer"}
+											</em>
+										) : null}
 										<span>{item.hotelName}</span>
+										{packageHijriLabel ? (
+											<span className="cart-package-hijri">
+												<CalendarDays size={13} />
+												{packageHijriLabel}
+											</span>
+										) : null}
 										<small>
 											<CalendarDays size={13} />
 											<bdi dir="ltr" className="ltr-value">{item.checkIn} - {item.checkOut}</bdi>

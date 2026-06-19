@@ -23,7 +23,7 @@ const footerSocialItems = [
 	{ key: "youtube", label: "YouTube", Icon: YoutubeFilled },
 ];
 
-export default function Footer({ website = {}, hotels = [] }) {
+export default function Footer({ website = {}, hotels = [], hasOffers = false }) {
 	const { t, isArabic, hrefWithLanguage } = useJannatApp();
 	const logo = website?.janatLogo?.url || DEFAULT_LOGO;
 	const topHotels = Array.isArray(hotels) ? hotels.slice(0, 4) : [];
@@ -129,9 +129,9 @@ export default function Footer({ website = {}, hotels = [] }) {
 			</div>
 			<div className="container footer-links">
 				<Link href={hrefWithLanguage("/rooms")}>{t("searchRooms")}</Link>
-				<Link href={hrefWithLanguage("/jannat-offers-monthly-reservations")}>
+				{hasOffers ? <Link href={hrefWithLanguage("/jannat-offers-monthly-reservations")}>
 					{isArabic ? "العروض" : "Offers"}
-				</Link>
+				</Link> : null}
 				<Link href={hrefWithLanguage("/terms-conditions?tab=guest")}>
 					{isArabic ? "الشروط" : "Terms"}
 				</Link>

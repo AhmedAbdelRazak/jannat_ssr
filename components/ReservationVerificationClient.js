@@ -4,11 +4,20 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { verifyReservationToken } from "../lib/api";
+import { signinJannatClient, verifyReservationToken } from "../lib/api";
 import { trackConversion } from "../lib/analyticsEvents";
+import { useJannatApp } from "./JannatAppProvider";
+
+const normalizePhoneInput = (value = "") =>
+	String(value || "")
+		.replace(/[^\d\s+-]/g, "")
+		.trim();
+
+const passwordFromPhone = (phone = "") => normalizePhoneInput(phone).replace(/\s+/g, "");
 
 export default function ReservationVerificationClient({ token }) {
 	const router = useRouter();
+	const { setAuthSession } = useJannatApp();
 	const startedRef = useRef(false);
 	const [status, setStatus] = useState("Verifying your reservation...");
 	const [error, setError] = useState("");
@@ -42,6 +51,18 @@ export default function ReservationVerificationClient({ token }) {
 				);
 
 				const customer = reservation.customerDetails || reservation.customer_details || {};
+				const signinPassword = customer.password || passwordFromPhone(customer.phone);
+				if (customer.phone && signinPassword) {
+					try {
+						const session = await signinJannatClient({
+							emailOrPhone: customer.phone,
+							password: signinPassword,
+						});
+						setAuthSession(session);
+					} catch (signinError) {
+						console.warn("Reservation verified, but automatic sign-in failed:", signinError?.message || signinError);
+					}
+				}
 				const query = new URLSearchParams();
 				query.set("name", customer.name || "Guest");
 				query.set("confirmation_number", reservation.confirmation_number || "");
@@ -58,7 +79,7 @@ export default function ReservationVerificationClient({ token }) {
 		};
 
 		run();
-	}, [router, token]);
+	}, [router, setAuthSession, token]);
 
 	return (
 		<section className="section confirmation-page">

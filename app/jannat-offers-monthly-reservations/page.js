@@ -1,4 +1,4 @@
-import HotelGrid from "../../components/HotelGrid";
+import { DealsShowcase } from "../../components/HotelDealsSection";
 import PageHero from "../../components/PageHero";
 import { getDealHotels } from "../../lib/api";
 import { BRAND_NAME, DEFAULT_HERO_IMAGE } from "../../lib/constants";
@@ -22,11 +22,7 @@ export default async function OffersPage() {
 				titleAr="إقامات شهرية وعروض خاصة"
 				copyAr="تظهر هنا الفنادق التي لديها أسعار شهرية أو عروض غرف نشطة."
 			/>
-			<section className="section">
-				<div className="container">
-					<HotelGrid hotels={hotels} emptyText="There are no active Jannat Booking offers yet." />
-				</div>
-			</section>
+			<DealsShowcase hotels={hotels} />
 		</>
 	);
 }

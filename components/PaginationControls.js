@@ -82,11 +82,12 @@ export default function PaginationControls({
 		return `${basePath || ""}${search ? `?${search}` : ""}`;
 	};
 
-	const renderControl = (targetPage, content, className, ariaLabel, disabled = false) => {
+	const renderControl = (targetPage, content, className, ariaLabel, disabled = false, key) => {
 		const safeTargetPage = clampPage(targetPage, totalPages);
 		if (onPageChange) {
 			return (
 				<button
+					key={key}
 					type="button"
 					className={className}
 					onClick={() => onPageChange(safeTargetPage)}
@@ -98,11 +99,11 @@ export default function PaginationControls({
 			);
 		}
 		return disabled ? (
-			<span className={`${className} is-disabled`} aria-disabled="true">
+			<span key={key} className={`${className} is-disabled`} aria-disabled="true">
 				{content}
 			</span>
 		) : (
-			<Link className={className} href={hrefForPage(safeTargetPage)} aria-label={ariaLabel}>
+			<Link key={key} className={className} href={hrefForPage(safeTargetPage)} aria-label={ariaLabel}>
 				{content}
 			</Link>
 		);
@@ -135,7 +136,8 @@ export default function PaginationControls({
 							<bdi dir="ltr">{item}</bdi>,
 							`pagination-page ${item === page ? "is-active" : ""}`,
 							`${pageLabel} ${item}`,
-							item === page
+							item === page,
+							`page-${item}`
 						)
 					)
 				)}

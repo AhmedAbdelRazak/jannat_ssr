@@ -2,7 +2,7 @@ import "./globals.css";
 import "antd/dist/reset.css";
 import { Suspense } from "react";
 import { headers } from "next/headers";
-import { getHotels, getWebsite } from "../lib/api";
+import { getDealHotels, getHotels, getWebsite } from "../lib/api";
 import {
 	BRAND_NAME,
 	BRAND_URL,
@@ -65,8 +65,9 @@ export default async function RootLayout({ children }) {
 	const requestHeaders = await headers();
 	const initialLanguage = normalizeLanguage(requestHeaders.get("x-jannat-language")) || "en";
 	const initialDirection = LANGUAGES[initialLanguage]?.dir || "ltr";
-	const [website, hotels] = await Promise.all([getWebsite(), getHotels()]);
+	const [website, hotels, dealHotels] = await Promise.all([getWebsite(), getHotels(), getDealHotels()]);
 	const clientWebsite = maskWebsiteEmails(website);
+	const hasOffers = Array.isArray(dealHotels) && dealHotels.length > 0;
 
 	const jsonLd = [
 		{
@@ -151,9 +152,9 @@ export default async function RootLayout({ children }) {
 					<Suspense fallback={null}>
 						<Analytics />
 					</Suspense>
-					<Header website={clientWebsite} />
+					<Header website={clientWebsite} hasOffers={hasOffers} />
 					<main>{children}</main>
-					<Footer website={clientWebsite} hotels={hotels} />
+					<Footer website={clientWebsite} hotels={hotels} hasOffers={hasOffers} />
 					<SupportWidget hotels={hotels} website={clientWebsite} />
 				</JannatAppProvider>
 			</body>

@@ -18,11 +18,17 @@ const todayOffset = (days) => {
 	date.setDate(date.getDate() + days);
 	return date.toISOString().slice(0, 10);
 };
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 const firstParam = (value, fallback = "") => (Array.isArray(value) ? value[0] || fallback : value || fallback);
 const parsePage = (value) => {
 	const page = Number.parseInt(firstParam(value, "1"), 10);
 	return Number.isFinite(page) && page > 0 ? page : 1;
+};
+const nightsBetween = (startDate, endDate) => {
+	const start = new Date(`${startDate}T00:00:00`);
+	const end = new Date(`${endDate}T00:00:00`);
+	const diff = Math.round((end - start) / 86400000);
+	return Math.max(1, Number.isFinite(diff) ? diff : 1);
 };
 
 export default async function RoomsPage({ searchParams }) {
@@ -45,6 +51,10 @@ export default async function RoomsPage({ searchParams }) {
 			roomRows.push({ hotel, room });
 		});
 	});
+	const uniqueHotelCount = new Set(
+		roomRows.map(({ hotel }) => hotel?._id || hotel?.hotelName).filter(Boolean)
+	).size;
+	const nights = nightsBetween(startDate, endDate);
 	const totalPages = Math.max(1, Math.ceil(roomRows.length / PAGE_SIZE));
 	const currentPage = Math.min(requestedPage, totalPages);
 	const paginatedRoomRows = roomRows.slice(
@@ -82,13 +92,16 @@ export default async function RoomsPage({ searchParams }) {
 					/>
 				</div>
 			</section>
-			<section className="section">
+			<section className="section rooms-results-section">
 				<div className="container page-stack">
 					<RoomsResultsHead
 						count={roomRows.length}
+						hotelCount={uniqueHotelCount}
+						showingCount={paginatedRoomRows.length}
 						destination={destination}
 						startDate={startDate}
 						endDate={endDate}
+						nights={nights}
 					/>
 					{roomRows.length ? (
 						<>

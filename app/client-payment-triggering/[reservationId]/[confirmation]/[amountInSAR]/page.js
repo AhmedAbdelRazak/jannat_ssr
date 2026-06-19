@@ -1,5 +1,6 @@
-import UtilityShell from "../../../../../components/UtilityShell";
+import ClientPaymentLinkClient from "../../../../../components/ClientPaymentLinkClient";
 import { BRAND_NAME } from "../../../../../lib/constants";
+import { getReservationById } from "../../../../../lib/api";
 
 export const metadata = {
 	title: `Client Payment Trigger | ${BRAND_NAME}`,
@@ -8,14 +9,14 @@ export const metadata = {
 };
 
 export default async function ClientPaymentTriggerPage({ params }) {
-	const { confirmation, amountInSAR } = await params;
+	const { reservationId, confirmation, amountInSAR } = await params;
+	const reservation = reservationId ? await getReservationById(reservationId) : null;
 	return (
-		<UtilityShell
-			eyebrow="Secure payment"
-			title="Private payment request"
-			copy={`This protected payment request is not indexed. Confirmation reference: ${confirmation || "pending"}. Amount: SAR ${amountInSAR || "0"}.`}
-			primaryHref="/contact"
-			primaryLabel="Contact support"
+		<ClientPaymentLinkClient
+			reservation={reservation}
+			reservationId={reservationId}
+			confirmation={confirmation}
+			requestedAmountSar={amountInSAR}
 		/>
 	);
 }

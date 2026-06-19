@@ -414,11 +414,15 @@ Source Of Truth Links
   - Standard conversion events are emitted for:
     - search / Search
     - view_item / ViewContent
+    - select_item
     - add_to_cart / AddToCart
     - begin_checkout / InitiateCheckout
-    - generate_lead / Lead
+    - generate_lead / Lead for unpaid reservation requests
     - contact / Contact
-    - purchase / Purchase for reservation requests
+    - purchase / Purchase only for successful paid PayPal captures
+    - private payment-link view and payment-option intent events
+  - Ecommerce payloads are normalized and accidental PII-like keys are filtered before analytics dispatch.
+  - Meta event IDs are attached for stronger deduplication readiness.
   - Existing legacy custom event names are still emitted through GA and Facebook custom events.
 - Verification performed:
   - npm install
@@ -429,4 +433,5 @@ Source Of Truth Links
   - robots.txt, sitemap.xml, and llms.txt returned HTTP 200 locally.
 - Important remaining migration note:
   - Normal cart checkout is implemented with PayPal support.
-  - Legacy generated/client payment-link routes currently render protected noindex support shells in SSR. A full payment-link UI migration should be handled as a focused follow-up before switching any production links that depend on those exact flows.
+  - Private client-payment links are implemented in SSR, remain noindex/private, and are intentionally excluded from sitemap/llms discovery.
+  - The detailed implementation summary for this thread is tracked in THREAD_IMPLEMENTATION_SUMMARY_2026-06-19.md.

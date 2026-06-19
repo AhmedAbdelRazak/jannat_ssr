@@ -1,4 +1,4 @@
-import { getHotels } from "../../lib/api";
+import { getDealHotels, getHotels } from "../../lib/api";
 import {
 	BRAND_NAME,
 	BRAND_URL,
@@ -9,7 +9,10 @@ import {
 import { slugifyHotel, titleCase } from "../../lib/format";
 
 export async function GET() {
-	const hotels = await getHotels();
+	const [hotels, dealHotels] = await Promise.all([getHotels(), getDealHotels()]);
+	const offersLine = Array.isArray(dealHotels) && dealHotels.length
+		? `- Offers: ${BRAND_URL}/jannat-offers-monthly-reservations\n`
+		: "";
 	const hotelLines = hotels
 		.slice(0, 30)
 		.map((hotel) => `- ${titleCase(hotel.hotelName)}: ${BRAND_URL}/single-hotel/${slugifyHotel(hotel.hotelName)}`)
@@ -30,7 +33,7 @@ Primary public pages:
 - Home: ${BRAND_URL}/
 - Hotels: ${BRAND_URL}/our-hotels
 - Room search: ${BRAND_URL}/rooms
-- Offers: ${BRAND_URL}/jannat-offers-monthly-reservations
+${offersLine.trimEnd()}
 - About: ${BRAND_URL}/about
 - Contact: ${BRAND_URL}/contact
 - Guest terms: ${BRAND_URL}/terms-conditions?tab=guest

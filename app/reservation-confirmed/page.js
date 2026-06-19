@@ -16,15 +16,18 @@ export default async function ReservationConfirmedPage({ searchParams }) {
 	const total = params?.total_price || "";
 	const rooms = params?.total_rooms || "";
 	const language = normalizeLanguage(params?.lang) || "en";
+	const isPaidFlow = params?.paid === "1" || params?.invoice === "1";
 
 	return (
 		<section className="section confirmation-page">
 			<div className="container confirmation-card premium-card">
 				<CheckCircle2 size={44} />
 				<p className="eyebrow">Jannat Booking</p>
-				<h1>Reservation received</h1>
+				<h1>{isPaidFlow ? "Payment received" : "Reservation received"}</h1>
 				<p>
-					Thank you {name}. Your booking request has been received and the hotel team will review the reservation details.
+					{isPaidFlow
+						? `Thank you ${name}. Your payment has been received, your invoice is available, and the reservation account is ready for review.`
+						: `Thank you ${name}. Your booking request has been received and the hotel team will review the reservation details.`}
 				</p>
 				<div className="confirmation-details">
 					{confirmation ? (
@@ -47,11 +50,17 @@ export default async function ReservationConfirmedPage({ searchParams }) {
 					) : null}
 				</div>
 				<div className="hero-actions">
-					<Link className="btn btn-primary" href={addLanguageToHref("/our-hotels", language)}>
-						Browse hotels
-					</Link>
-					<Link className="btn btn-ghost" href={addLanguageToHref("/rooms", language)}>
-						Search rooms
+					{confirmation ? (
+						<Link className="btn btn-primary" href={addLanguageToHref(`/single-reservation/${confirmation}`, language)}>
+							View invoice
+						</Link>
+					) : (
+						<Link className="btn btn-primary" href={addLanguageToHref("/our-hotels", language)}>
+							Browse hotels
+						</Link>
+					)}
+					<Link className="btn btn-ghost" href={addLanguageToHref(isPaidFlow ? "/dashboard" : "/rooms", language)}>
+						{isPaidFlow ? "Open dashboard" : "Search rooms"}
 					</Link>
 				</div>
 			</div>

@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dayjs from "dayjs";
+import { DatePicker } from "antd";
 import {
 	ArrowLeft,
 	ArrowRight,
 	BedDouble,
 	CalendarDays,
 	Car,
+	ExternalLink,
 	Footprints,
 	MapPin,
 	MessageCircle,
@@ -14,6 +17,7 @@ import {
 	Star,
 } from "lucide-react";
 import { trackConversion } from "../lib/analyticsEvents";
+import { hotelHasDeals } from "../lib/deals";
 import PaginationControls from "./PaginationControls";
 import RoomCard from "./RoomCard";
 import { ARABIC_BRAND_NAME, DEFAULT_HERO_IMAGE } from "../lib/constants";
@@ -28,6 +32,7 @@ import {
 } from "../lib/format";
 import { roomTypeCountLabel } from "../lib/roomLabels";
 import { openJannatSupport } from "../lib/support";
+import HotelDealsSection from "./HotelDealsSection";
 import HeroSkyEffect from "./HeroSkyEffect";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
@@ -44,6 +49,56 @@ const compactPhotos = (hotel = {}) => {
 
 const cleanPhone = (value = "") => String(value || "").replace(/[^\d+]/g, "");
 const PAGE_SIZE = 15;
+const DATE_FORMAT = "YYYY-MM-DD";
+
+const dateOffset = (days) => dayjs().add(days, "day").format(DATE_FORMAT);
+const asStayDate = (value, fallbackDays = 1) => {
+	const date = dayjs(value);
+	return date.isValid() ? date.startOf("day") : dayjs().add(fallbackDays, "day").startOf("day");
+};
+
+const normalizeStayDates = (checkInValue, checkOutValue) => {
+	const today = dayjs().startOf("day");
+	const fallbackCheckIn = asStayDate(dateOffset(1), 1);
+	let checkIn = asStayDate(checkInValue, 1);
+	if (checkIn.isBefore(today)) checkIn = fallbackCheckIn;
+
+	let checkOut = asStayDate(checkOutValue, 4);
+	if (!checkOut.isAfter(checkIn)) checkOut = checkIn.add(1, "day");
+
+	return {
+		checkIn: checkIn.format(DATE_FORMAT),
+		checkOut: checkOut.format(DATE_FORMAT),
+	};
+};
+
+const datesFromUrl = () => {
+	if (typeof window === "undefined") return normalizeStayDates(dateOffset(1), dateOffset(4));
+	const params = new URLSearchParams(window.location.search);
+	return normalizeStayDates(
+		params.get("start_date") || params.get("startDate") || dateOffset(1),
+		params.get("end_date") || params.get("endDate") || dateOffset(4)
+	);
+};
+
+const hotelMapDetails = (hotel = {}, hotelName = "") => {
+	const coordinates = Array.isArray(hotel?.location?.coordinates) ? hotel.location.coordinates : [];
+	const longitude = Number(coordinates[0]);
+	const latitude = Number(coordinates[1]);
+	const hasCoordinates =
+		Number.isFinite(latitude) &&
+		Number.isFinite(longitude) &&
+		Math.abs(latitude) <= 90 &&
+		Math.abs(longitude) <= 180;
+	const fallbackQuery = hotel.hotelAddress || hotelLocation(hotel) || hotelName || "Makkah Saudi Arabia";
+	const query = hasCoordinates ? `${latitude},${longitude}` : fallbackQuery;
+	const encodedQuery = encodeURIComponent(query);
+	return {
+		hasMap: Boolean(query),
+		embedUrl: `https://www.google.com/maps?q=${encodedQuery}&z=15&output=embed`,
+		directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodedQuery}`,
+	};
+};
 
 export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const { t, isArabic } = useJannatApp();
@@ -51,6 +106,8 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 	const [roomPage, setRoomPage] = useState(1);
 	const [preloadGallery, setPreloadGallery] = useState(false);
+	const [roomDates, setRoomDates] = useState(() => normalizeStayDates(dateOffset(1), dateOffset(4)));
+	const [activeSection, setActiveSection] = useState("overview");
 	const touchStartRef = useRef({ x: 0, y: 0 });
 	const heroImage =
 		photos[activePhotoIndex] ||
@@ -77,8 +134,14 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const roomCount = rooms.length;
 	const roomTypesLabel = roomTypeCountLabel(roomCount, isArabic);
 	const rating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const mapDetails = hotelMapDetails(hotel, hotelName);
+	const hasDeals = hotelHasDeals(hotel);
 	const roomTotalPages = Math.max(1, Math.ceil(roomCount / PAGE_SIZE));
 	const currentRoomPage = Math.min(roomPage, roomTotalPages);
+	const roomCheckInDate = asStayDate(roomDates.checkIn, 1);
+	const roomCheckOutDate = asStayDate(roomDates.checkOut, 4);
+	const roomNights = Math.max(1, roomCheckOutDate.diff(roomCheckInDate, "day"));
+	const today = dayjs().startOf("day");
 	const paginatedRooms = rooms.slice(
 		(currentRoomPage - 1) * PAGE_SIZE,
 		currentRoomPage * PAGE_SIZE
@@ -99,11 +162,49 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	useEffect(() => {
 		setRoomPage(1);
 		setActivePhotoIndex(0);
+		setRoomDates(datesFromUrl());
 	}, [hotel._id]);
 
 	useEffect(() => {
 		if (activePhotoIndex >= photos.length) setActivePhotoIndex(0);
 	}, [activePhotoIndex, photos.length]);
+
+	useEffect(() => {
+		const sectionIds = ["overview", "location", "rooms", ...(hasDeals ? ["packages"] : []), "support"];
+		let frame = 0;
+
+		const updateActiveSection = () => {
+			window.cancelAnimationFrame(frame);
+			frame = window.requestAnimationFrame(() => {
+				const anchorLine = Math.min(180, Math.max(104, window.innerHeight * 0.24));
+				let nextActive = sectionIds[0];
+
+				sectionIds.forEach((sectionId) => {
+					const element = document.getElementById(sectionId);
+					if (!element) return;
+					if (element.getBoundingClientRect().top <= anchorLine) {
+						nextActive = sectionId;
+					}
+				});
+
+				const overview = document.getElementById("overview");
+				if (nextActive === "location" && overview?.getBoundingClientRect().top > -140) {
+					nextActive = "overview";
+				}
+
+				setActiveSection((current) => (current === nextActive ? current : nextActive));
+			});
+		};
+
+		updateActiveSection();
+		window.addEventListener("scroll", updateActiveSection, { passive: true });
+		window.addEventListener("resize", updateActiveSection);
+		return () => {
+			window.cancelAnimationFrame(frame);
+			window.removeEventListener("scroll", updateActiveSection);
+			window.removeEventListener("resize", updateActiveSection);
+		};
+	}, [hasDeals]);
 
 	useEffect(() => {
 		setPreloadGallery(false);
@@ -131,6 +232,47 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 		});
 	};
 
+	const syncStayDatesToUrl = (nextDates) => {
+		if (typeof window === "undefined") return;
+		const url = new URL(window.location.href);
+		url.searchParams.set("start_date", nextDates.checkIn);
+		url.searchParams.set("end_date", nextDates.checkOut);
+		url.searchParams.delete("startDate");
+		url.searchParams.delete("endDate");
+		window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+	};
+
+	const updateStayDates = (nextDates) => {
+		const normalized = normalizeStayDates(nextDates.checkIn, nextDates.checkOut);
+		setRoomDates(normalized);
+		setRoomPage(1);
+		syncStayDatesToUrl(normalized);
+	};
+
+	const handleCheckInChange = (date) => {
+		if (!date) return;
+		const nextCheckIn = date.startOf("day");
+		const currentNights = Math.max(1, roomCheckOutDate.diff(roomCheckInDate, "day"));
+		const nextCheckOut = roomCheckOutDate.isAfter(nextCheckIn)
+			? roomCheckOutDate
+			: nextCheckIn.add(currentNights, "day");
+		updateStayDates({
+			checkIn: nextCheckIn.format(DATE_FORMAT),
+			checkOut: nextCheckOut.format(DATE_FORMAT),
+		});
+	};
+
+	const handleCheckOutChange = (date) => {
+		if (!date) return;
+		const nextCheckOut = date.isAfter(roomCheckInDate)
+			? date
+			: roomCheckInDate.add(1, "day");
+		updateStayDates({
+			checkIn: roomDates.checkIn,
+			checkOut: nextCheckOut.format(DATE_FORMAT),
+		});
+	};
+
 	const showPhoto = (index) => {
 		const count = Math.max(photos.length, 1);
 		setActivePhotoIndex((index + count) % count);
@@ -154,6 +296,16 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 		if (deltaX > 0) showPreviousPhoto();
 		else showNextPhoto();
 	};
+
+	const sectionNavItems = [
+		{ id: "overview", label: isArabic ? "\u0646\u0638\u0631\u0629 \u0639\u0627\u0645\u0629" : "Overview" },
+		{ id: "location", label: isArabic ? "\u0627\u0644\u0645\u0648\u0642\u0639" : "Location" },
+		{ id: "rooms", label: t("rooms") },
+		...(hasDeals
+			? [{ id: "packages", label: isArabic ? "\u0627\u0644\u0639\u0631\u0648\u0636 \u0648\u0627\u0644\u0628\u0627\u0642\u0627\u062a" : "Packages" }]
+			: []),
+		{ id: "support", label: t("support") },
+	];
 
 	return (
 		<>
@@ -296,11 +448,17 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 
 			<nav className="hotel-section-nav" dir={isArabic ? "rtl" : "ltr"} aria-label="Hotel sections">
 				<div className="container">
-					<a href="#overview">{isArabic ? "نظرة عامة" : "Overview"}</a>
-					<a href="#about">{isArabic ? "عن الفندق" : "About"}</a>
-					<a href="#rooms">{t("rooms")}</a>
-					<a href="#location">{isArabic ? "الموقع" : "Location"}</a>
-					<a href="#support">{t("support")}</a>
+					{sectionNavItems.map((item) => (
+						<a
+							key={item.id}
+							href={`#${item.id}`}
+							className={activeSection === item.id ? "is-active" : undefined}
+							aria-current={activeSection === item.id ? "true" : undefined}
+							onClick={() => setActiveSection(item.id)}
+						>
+							{item.label}
+						</a>
+					))}
 				</div>
 			</nav>
 
@@ -338,6 +496,34 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 							{t("askToBook")}
 						</button>
 					</aside>
+					{mapDetails.hasMap ? (
+						<article className="premium-card hotel-map-card">
+							<div className="hotel-map-copy">
+								<p className="eyebrow">{isArabic ? "\u062e\u0631\u064a\u0637\u0629 \u0627\u0644\u0645\u0648\u0642\u0639" : "Map location"}</p>
+								<h2>{isArabic ? "\u0634\u0627\u0647\u062f \u0645\u0648\u0642\u0639 \u0627\u0644\u0641\u0646\u062f\u0642" : "See the hotel location"}</h2>
+								<p>{hotel.hotelAddress || hotelLocation(hotel) || hotelName}</p>
+								<a
+									className="btn btn-metal"
+									href={mapDetails.directionsUrl}
+									target="_blank"
+									rel="noreferrer"
+								>
+									<MapPin size={17} />
+									{isArabic ? "\u0641\u062a\u062d \u0627\u0644\u0627\u062a\u062c\u0627\u0647\u0627\u062a" : "Open directions"}
+									<ExternalLink size={14} />
+								</a>
+							</div>
+							<div className="hotel-map-frame">
+								<iframe
+									title={`${hotelName} map`}
+									src={mapDetails.embedUrl}
+									loading="lazy"
+									referrerPolicy="no-referrer-when-downgrade"
+									allowFullScreen
+								/>
+							</div>
+						</article>
+					) : null}
 				</div>
 			</section>
 
@@ -349,6 +535,48 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 							<h2 className="section-title">{t("availableRoomTypes")}</h2>
 							<p className="section-copy">{t("availableRoomCopy")}</p>
 						</div>
+						<div
+							className="hotel-room-date-panel"
+							aria-label={isArabic ? "\u062a\u063a\u064a\u064a\u0631 \u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0625\u0642\u0627\u0645\u0629" : "Change stay dates"}
+						>
+							<div className="hotel-room-date-copy">
+								<span>
+									<CalendarDays size={15} />
+									{isArabic ? "\u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0625\u0642\u0627\u0645\u0629" : "Stay dates"}
+								</span>
+								<strong>{isArabic ? "\u063a\u064a\u0631 \u0627\u0644\u062a\u0648\u0627\u0631\u064a\u062e \u0644\u062d\u0633\u0627\u0628 \u0633\u0639\u0631 \u0627\u0644\u063a\u0631\u0641\u0629" : "Change dates to price the room"}</strong>
+							</div>
+							<div className="hotel-room-date-fields">
+								<div className="hotel-room-date-field">
+									<span>{t("checkIn")}</span>
+									<DatePicker
+										className="hotel-room-date-picker"
+										value={roomCheckInDate}
+										format={DATE_FORMAT}
+										allowClear={false}
+										disabledDate={(current) => current && current < today}
+										onChange={handleCheckInChange}
+										placement={isArabic ? "bottomRight" : "bottomLeft"}
+									/>
+								</div>
+								<div className="hotel-room-date-field">
+									<span>{t("checkOut")}</span>
+									<DatePicker
+										className="hotel-room-date-picker"
+										value={roomCheckOutDate}
+										format={DATE_FORMAT}
+										allowClear={false}
+										disabledDate={(current) => current && current <= roomCheckInDate.startOf("day")}
+										onChange={handleCheckOutChange}
+										placement={isArabic ? "bottomRight" : "bottomLeft"}
+									/>
+								</div>
+								<span className="hotel-room-night-pill">
+									<bdi dir="ltr" className="ltr-value">{roomNights}</bdi>
+									{roomNights > 1 ? t("nights") : t("night")}
+								</span>
+							</div>
+						</div>
 					</div>
 					<div className="room-list jannat-room-list">
 						{roomCount ? (
@@ -358,6 +586,9 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 									hotel={hotel}
 									room={room}
 									priority={index < 2}
+									imageGallery
+									checkIn={roomDates.checkIn}
+									checkOut={roomDates.checkOut}
 								/>
 							))
 						) : (
@@ -376,6 +607,8 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 					/>
 				</div>
 			</section>
+
+			{hasDeals ? <HotelDealsSection hotel={hotel} fallbackDates={roomDates} /> : null}
 
 			<section className="section" id="support">
 				<div className="container support-cta premium-card" dir={isArabic ? "rtl" : "ltr"}>

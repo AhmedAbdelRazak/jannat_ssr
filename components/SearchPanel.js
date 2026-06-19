@@ -8,6 +8,7 @@ import { roomTypeLabel } from "../lib/format";
 import { hotelDestinationOptions, normalizeHotelDestination } from "../lib/hotelLocations";
 import { useJannatApp } from "./JannatAppProvider";
 
+const DEFAULT_SEARCH_DESTINATION = "Makkah";
 const padDate = (value) => String(value).padStart(2, "0");
 const formatDate = (date) =>
 	`${date.getFullYear()}-${padDate(date.getMonth() + 1)}-${padDate(date.getDate())}`;
@@ -46,7 +47,7 @@ export default function SearchPanel({ hotels = [], roomTypes = [], compact = fal
 
 	const [destination, setDestination] = useState(() => {
 		const normalizedDefault = normalizeHotelDestination(defaults.destination);
-		return normalizedDefault || "";
+		return normalizedDefault || DEFAULT_SEARCH_DESTINATION;
 	});
 	const [checkIn, setCheckIn] = useState(parseDate(defaults.startDate, 1));
 	const [checkOut, setCheckOut] = useState(() => {
