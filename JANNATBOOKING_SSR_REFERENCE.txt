@@ -393,6 +393,7 @@ Production Readiness Notes
 - Confirm support chat creates records visible to admin customer service.
 - Confirm reservation count endpoint returns a valid number during client-side navigation and direct refresh.
 - Confirm private/payment/auth pages are not discoverable through sitemap/llms.
+- Client-created reservations and client payment-link payments should return an accountSession from hotels_backend. SSR stores that session in the guest auth context and redirects successful guests to /dashboard; /reservation-confirmed remains a fallback only if the session cannot be created.
 
 Related Backend Reference
 - D:\JannatBooking\hotels_backend\JANNATBOOKING_SSR_BACKEND_REFERENCE.txt
@@ -438,6 +439,13 @@ Production Cutover - 2026-06-19
   - /jannat-offers-monthly-reservations returned 200.
   - /client-payment/6a34d7ba59ca3c56c10a612d/3197993244?lang=ar&currency=sar returned 200.
   - /robots.txt and /sitemap.xml returned 200.
+
+Post-Cutover Auth Update - 2026-06-19
+- Production PM2 logs after live confirmation 8809610246 showed a healthy checkout path: /api/reservations/paypal/create returned 201, notifications ran, and the receipt page loaded without SSR errors.
+- The missing behavior was the post-reservation account handoff, not a failed reservation.
+- hotels_backend now returns accountSession for successful client checkout reservations and reservation-verification completion.
+- jannatbooking_ssr now stores accountSession after normal checkout, client payment-link payment, and reservation verification, then redirects the guest to /dashboard when the session is available.
+- Staff/offline employee reservation creation is intentionally not given a guest accountSession response.
   - jannat-ssr PM2 error log was clean after cutover.
   - Public rendered HTML checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed for home, rooms, offers, and client-payment.
 - Rollback notes:

@@ -17,7 +17,7 @@ const passwordFromPhone = (phone = "") => normalizePhoneInput(phone).replace(/\s
 
 export default function ReservationVerificationClient({ token }) {
 	const router = useRouter();
-	const { setAuthSession } = useJannatApp();
+	const { hrefWithLanguage, setAuthSession } = useJannatApp();
 	const startedRef = useRef(false);
 	const [status, setStatus] = useState("Verifying your reservation...");
 	const [error, setError] = useState("");
@@ -51,16 +51,24 @@ export default function ReservationVerificationClient({ token }) {
 				);
 
 				const customer = reservation.customerDetails || reservation.customer_details || {};
-				const signinPassword = customer.password || passwordFromPhone(customer.phone);
-				if (customer.phone && signinPassword) {
-					try {
-						const session = await signinJannatClient({
-							emailOrPhone: customer.phone,
-							password: signinPassword,
-						});
-						setAuthSession(session);
-					} catch (signinError) {
-						console.warn("Reservation verified, but automatic sign-in failed:", signinError?.message || signinError);
+				const accountSession = response?.accountSession;
+				let signedIn = false;
+				if (accountSession?.token && accountSession?.user?._id) {
+					setAuthSession(accountSession);
+					signedIn = true;
+				} else {
+					const signinPassword = customer.password || passwordFromPhone(customer.phone);
+					if (customer.phone && signinPassword) {
+						try {
+							const session = await signinJannatClient({
+								emailOrPhone: customer.phone,
+								password: signinPassword,
+							});
+							setAuthSession(session);
+							signedIn = true;
+						} catch (signinError) {
+							console.warn("Reservation verified, but automatic sign-in failed:", signinError?.message || signinError);
+						}
 					}
 				}
 				const query = new URLSearchParams();
@@ -69,8 +77,15 @@ export default function ReservationVerificationClient({ token }) {
 				query.set("total_price", reservation.total_amount || reservation.total || 0);
 				query.set("total_rooms", reservation.total_rooms || 0);
 				query.set("hotel_name", reservation.hotelName || "");
-				setStatus("Reservation verified. Redirecting to confirmation...");
+				setStatus("Reservation verified. Redirecting to your dashboard...");
 				window.setTimeout(() => {
+					if (signedIn) {
+						const dashboardParams = new URLSearchParams({
+							reservation: reservation.confirmation_number || "",
+						});
+						router.replace(hrefWithLanguage(`/dashboard?${dashboardParams.toString()}`));
+						return;
+					}
 					router.replace(`/reservation-confirmed?${query.toString()}`);
 				}, 700);
 			} catch (err) {
@@ -79,7 +94,7 @@ export default function ReservationVerificationClient({ token }) {
 		};
 
 		run();
-	}, [router, setAuthSession, token]);
+	}, [hrefWithLanguage, router, setAuthSession, token]);
 
 	return (
 		<section className="section confirmation-page">

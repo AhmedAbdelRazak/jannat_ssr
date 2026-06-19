@@ -434,6 +434,7 @@ Source Of Truth Links
 - Important remaining migration note:
   - Normal cart checkout is implemented with PayPal support.
   - Private client-payment links are implemented in SSR, remain noindex/private, and are intentionally excluded from sitemap/llms discovery.
+  - Successful client checkout, client payment-link payment, and reservation verification should silently create or link the guest account through hotels_backend accountSession responses; SSR stores the session and redirects the guest to /dashboard when available.
   - The detailed implementation summary for this thread is tracked in THREAD_IMPLEMENTATION_SUMMARY_2026-06-19.md.
 
 Production Cutover State

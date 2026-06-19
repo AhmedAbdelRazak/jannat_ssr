@@ -1180,6 +1180,14 @@ export default function ClientPaymentLinkClient({
 				invoice: "1",
 				lang: language,
 			});
+			if (response?.accountSession?.token && response?.accountSession?.user?._id) {
+				const dashboardParams = new URLSearchParams({
+					reservation: updated?.confirmation_number || reservation?.confirmation_number || confirmation || "",
+					paid: "1",
+				});
+				router.push(hrefWithLanguage(`/dashboard?${dashboardParams.toString()}`));
+				return;
+			}
 			router.push(`/reservation-confirmed?${params.toString()}`);
 		} catch (error) {
 			console.error("Client payment failed:", error);

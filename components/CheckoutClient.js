@@ -1094,6 +1094,7 @@ export default function CheckoutClient({ website = {} }) {
 		removeCartItem,
 		nightsBetween,
 		clearCart,
+		setAuthSession,
 		currency,
 		formatCurrency,
 	} = useJannatApp();
@@ -1548,6 +1549,7 @@ export default function CheckoutClient({ website = {} }) {
 		});
 		message.success(response?.message || (isArabic ? "تم إنشاء الحجز بنجاح." : "Reservation created successfully."));
 		const reservation = response?.data || response?.reservation || {};
+		const accountSession = response?.accountSession;
 		trackConversion(
 			"reservationPayment",
 			{
@@ -1584,7 +1586,17 @@ export default function CheckoutClient({ website = {} }) {
 		if (reservation.confirmation_number || paypalPayload.confirmation_number) {
 			params.set("confirmation_number", reservation.confirmation_number || paypalPayload.confirmation_number);
 		}
+		if (reservation?._id) params.set("reservationId", reservation._id);
 		clearCart();
+		if (accountSession?.token && accountSession?.user?._id) {
+			setAuthSession(accountSession);
+			const dashboardParams = new URLSearchParams({
+				reservation: reservation.confirmation_number || paypalPayload.confirmation_number || "",
+				paid: "1",
+			});
+			router.push(hrefWithLanguage(`/dashboard?${dashboardParams.toString()}`));
+			return;
+		}
 		router.push(`/reservation-confirmed?${params.toString()}`);
 	};
 
