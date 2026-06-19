@@ -1370,19 +1370,16 @@ html[dir="rtl"] .desktop-auth-state {
 	position: absolute;
 	left: var(--star-x);
 	top: var(--star-y);
-	display: inline-grid;
-	place-items: center;
 	color: var(--star-color);
-	font-family: "Trebuchet MS", Arial, sans-serif;
-	font-size: max(var(--star-size), 8px);
-	font-weight: 900;
-	line-height: 1;
-	width: 1em;
-	height: 1em;
-	text-shadow: 0 0 0 rgba(255, 255, 255, 0);
+	display: block;
+	width: max(var(--star-size), 8px);
+	height: max(var(--star-size), 8px);
+	background: currentColor;
+	clip-path: polygon(50% 0%, 60% 36%, 100% 50%, 60% 64%, 50% 100%, 40% 64%, 0% 50%, 40% 36%);
 	opacity: 0.34;
 	transform: translate(-50%, -50%) rotate(var(--star-rotate));
-	will-change: opacity, filter, text-shadow, transform;
+	filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+	will-change: opacity, filter, transform;
 	animation:
 		heroStarGlow var(--star-duration) ease-in-out infinite,
 		heroStarBreath var(--star-duration) ease-in-out infinite;
@@ -1390,21 +1387,17 @@ html[dir="rtl"] .desktop-auth-state {
 }
 
 .hero-sky-effects.is-compact .hero-shine-star {
-	font-size: max(var(--star-size), 7px);
+	width: max(var(--star-size), 7px);
+	height: max(var(--star-size), 7px);
 }
 
 .hero-shine-star::before {
-	content: "*";
+	content: "";
 	position: absolute;
-	inset: 0;
-	display: grid;
-	place-items: center;
-	color: currentColor;
-	font-size: 1.28em;
-	line-height: 1;
-	text-shadow:
-		0 0 6px currentColor,
-		0 0 14px rgba(255, 255, 255, 0.36);
+	inset: -105%;
+	border-radius: 999px;
+	background:
+		radial-gradient(circle, currentColor 0 9%, rgba(255, 255, 255, 0.42) 16%, rgba(255, 255, 255, 0.18) 28%, transparent 58%);
 	opacity: 0;
 	transform: scale(0.82);
 	filter: blur(1.5px);
@@ -1414,17 +1407,15 @@ html[dir="rtl"] .desktop-auth-state {
 }
 
 .hero-shine-star::after {
-	content: "*";
+	content: "";
 	position: absolute;
-	inset: 0;
-	display: grid;
-	place-items: center;
-	color: rgba(255, 255, 255, 0.92);
+	inset: 17%;
+	background: rgba(255, 255, 255, 0.92);
+	clip-path: polygon(50% 0%, 60% 36%, 100% 50%, 60% 64%, 50% 100%, 40% 64%, 0% 50%, 40% 36%);
 	opacity: 0;
-	font-weight: 900;
-	text-shadow:
-		0 0 4px currentColor,
-		0 0 10px rgba(255, 255, 255, 0.48);
+	filter:
+		drop-shadow(0 0 4px rgba(255, 255, 255, 0.86))
+		drop-shadow(0 0 10px rgba(255, 255, 255, 0.42));
 	animation: heroStarWhiteFlash var(--star-duration) ease-in-out infinite;
 	animation-delay: var(--star-delay);
 }
@@ -1459,36 +1450,40 @@ html[dir="rtl"] .desktop-auth-state {
 @keyframes heroStarGlow {
 	0% {
 		opacity: 0.32;
-		filter: brightness(0.92) saturate(0.96);
-		text-shadow: 0 0 2px rgba(255, 255, 255, 0.08);
+		filter:
+			brightness(0.92)
+			saturate(0.96)
+			drop-shadow(0 0 0 rgba(255, 255, 255, 0));
 	}
 	28% {
 		opacity: 0.66;
-		filter: brightness(1.08) saturate(1.08);
-		text-shadow:
-			0 0 4px currentColor,
-			0 0 9px rgba(255, 255, 255, 0.18);
+		filter:
+			brightness(1.08)
+			saturate(1.08)
+			drop-shadow(0 0 4px currentColor);
 	}
 	48% {
 		opacity: 1;
-		filter: brightness(2.1) saturate(1.2);
-		text-shadow:
-			0 0 3px rgba(255, 255, 255, 1),
-			0 0 8px currentColor,
-			0 0 15px currentColor,
-			0 0 22px rgba(255, 255, 255, 0.32);
+		filter:
+			brightness(2.1)
+			saturate(1.2)
+			drop-shadow(0 0 4px rgba(255, 255, 255, 0.98))
+			drop-shadow(0 0 10px currentColor)
+			drop-shadow(0 0 18px rgba(255, 255, 255, 0.32));
 	}
 	70% {
 		opacity: 0.58;
-		filter: brightness(1.05) saturate(1);
-		text-shadow:
-			0 0 5px currentColor,
-			0 0 12px rgba(255, 255, 255, 0.16);
+		filter:
+			brightness(1.05)
+			saturate(1)
+			drop-shadow(0 0 5px currentColor);
 	}
 	100% {
 		opacity: 0.34;
-		filter: brightness(0.94) saturate(0.96);
-		text-shadow: 0 0 2px rgba(255, 255, 255, 0.08);
+		filter:
+			brightness(0.94)
+			saturate(0.96)
+			drop-shadow(0 0 0 rgba(255, 255, 255, 0));
 	}
 }
 

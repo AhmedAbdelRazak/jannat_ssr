@@ -15,8 +15,8 @@ export default function HotelGrid({ hotels = [], limit, emptyText = "No hotels a
 	}
 	return (
 		<div className="hotel-grid">
-			{rows.map((hotel, index) => (
-				<HotelCard key={hotel._id || hotel.hotelName} hotel={hotel} priority={index < 2} />
+			{rows.map((hotel) => (
+				<HotelCard key={hotel._id || hotel.hotelName} hotel={hotel} />
 			))}
 		</div>
 	);

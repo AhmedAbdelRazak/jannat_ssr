@@ -54,9 +54,7 @@ export default function HeroSkyEffect({ density = "full" }) {
 	return (
 		<div className={`hero-sky-effects ${density === "compact" ? "is-compact" : "is-full"}`} aria-hidden="true">
 			{stars.map((star, index) => (
-				<span className="hero-shine-star" style={toStarStyle(star)} key={`${star[0]}-${star[1]}-${index}`}>
-					*
-				</span>
+				<span className="hero-shine-star" style={toStarStyle(star)} key={`${star[0]}-${star[1]}-${index}`} />
 			))}
 			<svg className="hero-crescent" viewBox="0 0 100 100" focusable="false">
 				<mask id={maskId}>
