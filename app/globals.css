@@ -1448,17 +1448,11 @@ html[dir="rtl"] .desktop-auth-state {
 
 .hero-crescent-glint {
 	fill: rgba(255, 250, 214, 0.9);
-	font-family: "Trebuchet MS", Arial, sans-serif;
-	font-size: 14px;
-	font-weight: 900;
-	text-anchor: middle;
-	dominant-baseline: middle;
 	filter: drop-shadow(0 0 0 rgba(255, 250, 214, 0));
 	animation: heroCrescentGlint 5.2s ease-in-out infinite;
 }
 
 .hero-crescent-glint-small {
-	font-size: 10px;
 	animation-delay: -2.1s;
 }
 

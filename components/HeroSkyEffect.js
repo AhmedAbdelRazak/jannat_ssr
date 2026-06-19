@@ -45,6 +45,8 @@ const toStarStyle = ([x, y, size, delay, duration, color, rotate]) => ({
 	"--star-rotate": rotate,
 });
 
+const GLINT_PATH = "M0 -7 1.8 -1.8 7 0 1.8 1.8 0 7 -1.8 1.8 -7 0 -1.8 -1.8Z";
+
 export default function HeroSkyEffect({ density = "full" }) {
 	const maskId = `hero-crescent-mask-${useId().replace(/:/g, "")}`;
 	const stars = density === "compact" ? COMPACT_STARS : FULL_STARS;
@@ -62,12 +64,8 @@ export default function HeroSkyEffect({ density = "full" }) {
 					<circle cx="63" cy="43" r="43" fill="black" />
 				</mask>
 				<circle className="hero-crescent-shape" cx="43" cy="55" r="42" mask={`url(#${maskId})`} />
-				<text className="hero-crescent-glint" x="34" y="32">
-					*
-				</text>
-				<text className="hero-crescent-glint hero-crescent-glint-small" x="58" y="70">
-					*
-				</text>
+				<path className="hero-crescent-glint" d={GLINT_PATH} transform="translate(34 32)" />
+				<path className="hero-crescent-glint hero-crescent-glint-small" d={GLINT_PATH} transform="translate(58 70) scale(.72)" />
 			</svg>
 		</div>
 	);

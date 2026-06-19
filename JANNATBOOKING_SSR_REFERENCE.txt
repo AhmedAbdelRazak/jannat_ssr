@@ -446,6 +446,15 @@ Post-Cutover Auth Update - 2026-06-19
 - hotels_backend now returns accountSession for successful client checkout reservations and reservation-verification completion.
 - jannatbooking_ssr now stores accountSession after normal checkout, client payment-link payment, and reservation verification, then redirects the guest to /dashboard when the session is available.
 - Staff/offline employee reservation creation is intentionally not given a guest accountSession response.
+
+PageSpeed And Agentic Update - 2026-06-19
+- /llms.txt is served as Markdown and uses real Markdown links for the main public pages, sitemap, robots policy, offers, and representative hotel pages.
+- Header language flags use tiny SVG assets instead of oversized PNG files.
+- Flag assets receive long immutable cache headers.
+- Next image device sizes include 384px and 512px candidates so mobile hotel cards can avoid over-downloading 640px images when a smaller generated image is enough.
+- Decorative crescent glints are SVG paths, not SVG text, so Lighthouse should not treat them as LCP text.
+- The support chat widget is loaded after idle unless chat query params are present, while keeping query-driven chat flows immediate.
+- Analytics keeps lightweight GA/Facebook stubs early but loads third-party libraries with lazyOnload to reduce initial main-thread/network pressure.
   - jannat-ssr PM2 error log was clean after cutover.
   - Public rendered HTML checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed for home, rooms, offers, and client-payment.
 - Rollback notes:

@@ -15,7 +15,7 @@ import { LANGUAGES } from "../lib/i18n";
 import { normalizeLanguage } from "../lib/language";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import SupportWidget from "../components/SupportWidget";
+import LazySupportWidget from "../components/LazySupportWidget";
 import { maskWebsiteEmails } from "../lib/email";
 import { JannatAppProvider } from "../components/JannatAppProvider";
 import Analytics from "../components/Analytics";
@@ -68,6 +68,20 @@ export default async function RootLayout({ children }) {
 	const [website, hotels, dealHotels] = await Promise.all([getWebsite(), getHotels(), getDealHotels()]);
 	const clientWebsite = maskWebsiteEmails(website);
 	const hasOffers = Array.isArray(dealHotels) && dealHotels.length > 0;
+	const footerHotels = Array.isArray(hotels)
+		? hotels.slice(0, 4).map((hotel) => ({
+				_id: hotel._id,
+				hotelName: hotel.hotelName,
+				hotelName_OtherLanguage: hotel.hotelName_OtherLanguage,
+		  }))
+		: [];
+	const supportHotels = Array.isArray(hotels)
+		? hotels.map((hotel) => ({
+				_id: hotel._id,
+				hotelName: hotel.hotelName,
+				belongsTo: hotel.belongsTo?._id || hotel.belongsTo || "",
+		  }))
+		: [];
 
 	const jsonLd = [
 		{
@@ -154,8 +168,8 @@ export default async function RootLayout({ children }) {
 					</Suspense>
 					<Header website={clientWebsite} hasOffers={hasOffers} />
 					<main>{children}</main>
-					<Footer website={clientWebsite} hotels={hotels} hasOffers={hasOffers} />
-					<SupportWidget hotels={hotels} website={clientWebsite} />
+					<Footer website={clientWebsite} hotels={footerHotels} hasOffers={hasOffers} />
+					<LazySupportWidget hotels={supportHotels} website={clientWebsite} />
 				</JannatAppProvider>
 			</body>
 		</html>

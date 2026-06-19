@@ -39,7 +39,7 @@ export default function Analytics() {
 				<>
 					<Script
 						src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
-						strategy="afterInteractive"
+						strategy="lazyOnload"
 					/>
 					<Script id="jannat-gtag" strategy="afterInteractive">
 						{`
@@ -59,16 +59,17 @@ export default function Analytics() {
 			) : null}
 			{FACEBOOK_PIXEL_ID ? (
 				<>
+					<Script
+						src="https://connect.facebook.net/en_US/fbevents.js"
+						strategy="lazyOnload"
+					/>
 					<Script id="jannat-facebook-pixel" strategy="afterInteractive">
 						{`
-							!function(f,b,e,v,n,t,s)
+							!function(f,n)
 							{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 							n.callMethod.apply(n,arguments):n.queue.push(arguments)};
 							if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-							n.queue=[];t=b.createElement(e);t.async=!0;
-							t.src=v;s=b.getElementsByTagName(e)[0];
-							s.parentNode.insertBefore(t,s)}(window, document,'script',
-							'https://connect.facebook.net/en_US/fbevents.js');
+							n.queue=[]}(window);
 							fbq('init', '${FACEBOOK_PIXEL_ID}');
 							fbq('track', 'PageView');
 						`}

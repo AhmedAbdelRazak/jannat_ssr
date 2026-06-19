@@ -67,13 +67,13 @@ const languageMeta = {
 	en: {
 		code: "EN",
 		label: "English",
-		flag: "/flags/usa.png",
+		flag: "/flags/usa.svg",
 		nextLabel: "Switch to Arabic",
 	},
 	ar: {
 		code: "AR",
 		label: "\u0627\u0644\u0639\u0631\u0628\u064a\u0629",
-		flag: "/flags/ksa.png",
+		flag: "/flags/ksa.svg",
 		nextLabel: "Switch to English",
 	},
 };

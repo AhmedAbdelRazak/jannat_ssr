@@ -11,11 +11,14 @@ import { slugifyHotel, titleCase } from "../../lib/format";
 export async function GET() {
 	const [hotels, dealHotels] = await Promise.all([getHotels(), getDealHotels()]);
 	const offersLine = Array.isArray(dealHotels) && dealHotels.length
-		? `- Offers: ${BRAND_URL}/jannat-offers-monthly-reservations\n`
+		? `- [Offers](${BRAND_URL}/jannat-offers-monthly-reservations)\n`
 		: "";
 	const hotelLines = hotels
 		.slice(0, 30)
-		.map((hotel) => `- ${titleCase(hotel.hotelName)}: ${BRAND_URL}/single-hotel/${slugifyHotel(hotel.hotelName)}`)
+		.map((hotel) => {
+			const name = titleCase(hotel.hotelName);
+			return `- [${name}](${BRAND_URL}/single-hotel/${slugifyHotel(hotel.hotelName)})`;
+		})
 		.join("\n");
 
 	const body = `# ${BRAND_NAME}
@@ -30,16 +33,18 @@ Trust and booking model:
 - Private checkout, payment, dashboard, reservation, and support-case URLs are intentionally excluded from indexing.
 
 Primary public pages:
-- Home: ${BRAND_URL}/
-- Hotels: ${BRAND_URL}/our-hotels
-- Room search: ${BRAND_URL}/rooms
+- [Home](${BRAND_URL}/)
+- [Hotels](${BRAND_URL}/our-hotels)
+- [Room search](${BRAND_URL}/rooms)
 ${offersLine.trimEnd()}
-- About: ${BRAND_URL}/about
-- Contact: ${BRAND_URL}/contact
-- Guest terms: ${BRAND_URL}/terms-conditions?tab=guest
-- Hotel partner terms: ${BRAND_URL}/terms-conditions?tab=hotel
-- Privacy policy: ${BRAND_URL}/terms-conditions?tab=privacy
-- List a property: ${BRAND_URL}/list-property
+- [About](${BRAND_URL}/about)
+- [Contact](${BRAND_URL}/contact)
+- [Guest terms](${BRAND_URL}/terms-conditions?tab=guest)
+- [Hotel partner terms](${BRAND_URL}/terms-conditions?tab=hotel)
+- [Privacy policy](${BRAND_URL}/terms-conditions?tab=privacy)
+- [List a property](${BRAND_URL}/list-property)
+- [XML sitemap](${BRAND_URL}/sitemap.xml)
+- [Robots policy](${BRAND_URL}/robots.txt)
 
 Representative hotel pages:
 ${hotelLines || "- Active hotel pages are listed in the XML sitemap."}
@@ -53,7 +58,7 @@ Privacy:
 
 	return new Response(body, {
 		headers: {
-			"Content-Type": "text/plain; charset=utf-8",
+			"Content-Type": "text/markdown; charset=utf-8",
 			"Cache-Control": "public, max-age=3600, s-maxage=3600",
 		},
 	});
