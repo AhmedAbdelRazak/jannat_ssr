@@ -1,6 +1,7 @@
 import ClientPaymentLinkClient from "../../../../../components/ClientPaymentLinkClient";
 import { BRAND_NAME } from "../../../../../lib/constants";
 import { getReservationById } from "../../../../../lib/api";
+import { sanitizeReservationForPublicPayment } from "../../../../../lib/reservationSanitizer";
 
 export const metadata = {
 	title: `Client Payment Trigger | ${BRAND_NAME}`,
@@ -13,7 +14,7 @@ export default async function ClientPaymentTriggerPage({ params }) {
 	const reservation = reservationId ? await getReservationById(reservationId) : null;
 	return (
 		<ClientPaymentLinkClient
-			reservation={reservation}
+			reservation={sanitizeReservationForPublicPayment(reservation)}
 			reservationId={reservationId}
 			confirmation={confirmation}
 			requestedAmountSar={amountInSAR}
