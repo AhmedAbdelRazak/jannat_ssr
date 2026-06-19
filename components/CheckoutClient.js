@@ -48,8 +48,65 @@ const normalizePhoneInput = (value = "") =>
 const passwordFromPhone = (phone = "") => normalizePhoneInput(phone).replace(/\s+/g, "");
 
 const toMoney = (value) => Number(safeNumber(value, 0).toFixed(2));
+const CARD_FIELDS_READY_ATTEMPTS = 60;
+const CARD_FIELDS_READY_INTERVAL_MS = 200;
 
 const APPLE_PAY_SDK_SRC = "https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js";
+
+const readPayPalCardFieldsStatus = () => {
+	if (typeof window === "undefined") return "checking";
+	const cardFields = window?.paypal?.CardFields;
+	if (!cardFields) return "checking";
+	if (typeof cardFields.isEligible === "function") {
+		try {
+			return cardFields.isEligible() ? "ready" : "checking";
+		} catch (_error) {
+			return "checking";
+		}
+	}
+	return "ready";
+};
+
+function usePayPalCardFieldsStatus(isResolved, walletOnly, retryKey) {
+	const [status, setStatus] = useState("checking");
+
+	useEffect(() => {
+		if (!isResolved) {
+			setStatus("checking");
+			return undefined;
+		}
+		if (walletOnly) {
+			setStatus("unavailable");
+			return undefined;
+		}
+
+		let cancelled = false;
+		let attempts = 0;
+		setStatus("checking");
+
+		const check = () => {
+			if (cancelled) return;
+			const nextStatus = readPayPalCardFieldsStatus();
+			if (nextStatus === "ready") {
+				setStatus("ready");
+				return;
+			}
+			attempts += 1;
+			if (attempts >= CARD_FIELDS_READY_ATTEMPTS) {
+				setStatus("unavailable");
+				return;
+			}
+			window.setTimeout(check, CARD_FIELDS_READY_INTERVAL_MS);
+		};
+
+		check();
+		return () => {
+			cancelled = true;
+		};
+	}, [isResolved, walletOnly, retryKey]);
+
+	return status;
+}
 
 const ensureApplePaySdk = () => {
 	if (typeof window === "undefined") return Promise.resolve(false);
@@ -597,6 +654,11 @@ function JannatPayPalButtons({
 }) {
 	const { message } = AntdApp.useApp();
 	const [{ isResolved, isRejected }] = usePayPalScriptReducer();
+	const cardFieldsStatus = usePayPalCardFieldsStatus(
+		isResolved,
+		walletOnly,
+		`${selectedPaymentOption || "option"}-${selectedUsdAmount}`
+	);
 	const pendingRef = useRef({
 		pendingReservationId: null,
 		confirmation_number: null,
@@ -979,21 +1041,8 @@ function JannatPayPalButtons({
 				onBeforeStart={validateCardSubmitReadiness}
 				chargeLabel={payPalChargeNode}
 			/>
-			{isResolved && !walletOnly ? (() => {
-				let supportsCardFields = false;
-				try {
-					supportsCardFields = Boolean(window?.paypal?.CardFields);
-					if (
-						supportsCardFields &&
-						typeof window.paypal.CardFields.isEligible === "function"
-					) {
-						supportsCardFields = Boolean(window.paypal.CardFields.isEligible());
-					}
-				} catch (_error) {
-					supportsCardFields = false;
-				}
-
-				return supportsCardFields ? (
+			{isResolved && !walletOnly ? (
+				cardFieldsStatus === "ready" ? (
 					<div className="paypal-card-fields-panel" dir={isArabic ? "rtl" : "ltr"}>
 						<div className="paypal-card-fields-head">
 							<CreditCard size={18} />
@@ -1062,6 +1111,19 @@ function JannatPayPalButtons({
 							/>
 						</PayPalCardFieldsProvider>
 					</div>
+				) : cardFieldsStatus === "checking" ? (
+					<div className="paypal-card-fields-panel paypal-card-fields-loading" dir={isArabic ? "rtl" : "ltr"}>
+						<div className="paypal-card-fields-head">
+							<CreditCard size={18} />
+							<div>
+								<strong>{isArabic ? "\u0627\u062f\u0641\u0639 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Pay directly by card"}</strong>
+								<span>{isArabic ? "\u062c\u0627\u0631\u064a \u062a\u062c\u0647\u064a\u0632 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0622\u0645\u0646\u0629..." : "Preparing secure card fields..."}</span>
+							</div>
+						</div>
+						<div className="paypal-loading compact">
+							<Spin />
+						</div>
+					</div>
 				) : (
 					<Alert
 						type="info"
@@ -1074,8 +1136,8 @@ function JannatPayPalButtons({
 								: "Please use the card payment button above. Card-field availability can vary by PayPal account, country, browser, or sandbox/live configuration."
 						}
 					/>
-				);
-			})() : null}
+				)
+			) : null}
 		</div>
 	);
 }

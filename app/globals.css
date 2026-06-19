@@ -6850,6 +6850,14 @@ html[dir="rtl"] .summary-count {
 	margin-top: 4px;
 }
 
+.paypal-card-fields-loading {
+	border-style: dashed;
+}
+
+.paypal-card-fields-loading .paypal-loading.compact {
+	min-height: 34px;
+}
+
 .paypal-recovery-actions {
 	display: flex;
 	justify-content: center;
