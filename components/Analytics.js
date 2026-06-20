@@ -2,17 +2,44 @@
 
 import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FACEBOOK_PIXEL_ID, GOOGLE_ANALYTICS_ID } from "../lib/constants";
 
 export default function Analytics() {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const lastPathRef = useRef("");
+	const [loadLibraries, setLoadLibraries] = useState(false);
 	const pagePath = useMemo(() => {
 		const query = searchParams?.toString();
 		return `${pathname || "/"}${query ? `?${query}` : ""}`;
 	}, [pathname, searchParams]);
+
+	useEffect(() => {
+		if (loadLibraries || (!GOOGLE_ANALYTICS_ID && !FACEBOOK_PIXEL_ID)) return undefined;
+		let loaded = false;
+		const load = () => {
+			if (loaded) return;
+			loaded = true;
+			setLoadLibraries(true);
+		};
+		const timer = window.setTimeout(load, 5500);
+		const onVisibilityChange = () => {
+			if (document.visibilityState === "hidden") load();
+		};
+		const listenerOptions = { passive: true, once: true };
+		window.addEventListener("pointerdown", load, listenerOptions);
+		window.addEventListener("keydown", load, { once: true });
+		window.addEventListener("touchstart", load, listenerOptions);
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		return () => {
+			window.clearTimeout(timer);
+			window.removeEventListener("pointerdown", load);
+			window.removeEventListener("keydown", load);
+			window.removeEventListener("touchstart", load);
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+		};
+	}, [loadLibraries]);
 
 	useEffect(() => {
 		if (!pagePath || lastPathRef.current === pagePath) return;
@@ -37,10 +64,12 @@ export default function Analytics() {
 		<>
 			{GOOGLE_ANALYTICS_ID ? (
 				<>
-					<Script
-						src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
-						strategy="lazyOnload"
-					/>
+					{loadLibraries ? (
+						<Script
+							src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
+							strategy="afterInteractive"
+						/>
+					) : null}
 					<Script id="jannat-gtag" strategy="afterInteractive">
 						{`
 							window.dataLayer = window.dataLayer || [];
@@ -59,10 +88,12 @@ export default function Analytics() {
 			) : null}
 			{FACEBOOK_PIXEL_ID ? (
 				<>
-					<Script
-						src="https://connect.facebook.net/en_US/fbevents.js"
-						strategy="lazyOnload"
-					/>
+					{loadLibraries ? (
+						<Script
+							src="https://connect.facebook.net/en_US/fbevents.js"
+							strategy="afterInteractive"
+						/>
+					) : null}
 					<Script id="jannat-facebook-pixel" strategy="afterInteractive">
 						{`
 							!function(f,n)

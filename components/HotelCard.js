@@ -212,6 +212,7 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 						alt={displayName || "Jannat hotel"}
 						fill
 						priority={priority}
+						quality={66}
 						sizes="(max-width: 760px) calc(100vw - 56px), (max-width: 1100px) 42vw, 370px"
 					/>
 					<span className="hotel-card-image-dots" aria-hidden="true">

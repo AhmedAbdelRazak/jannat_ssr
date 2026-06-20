@@ -455,8 +455,11 @@ PageSpeed And Agentic Update - 2026-06-19
 - Decorative crescent glints are SVG paths, not SVG text, so Lighthouse should not treat them as LCP text.
 - Decorative hero stars are CSS-drawn sparkle shapes with empty DOM nodes, not literal "*" text, so the visual star effect stays while LCP and agent parsers do not see the sky as content text.
 - Generic hotel grid cards no longer force the first two hotel images to high priority; the hero image keeps first-load priority, while below-fold hotel cards can load normally.
+- The cart drawer is split out of the homepage/header initial bundle and loads only when the cart opens, keeping Ant Design date-picker/drawer work off the first mobile render.
+- Google Analytics and Facebook Pixel keep early queue stubs, then load their external libraries after first interaction, tab hide, or a short delay. This preserves queued conversion calls while reducing initial mobile main-thread pressure.
+- Hotel listing card images use a lower optimized quality setting for below-fold cards to reduce the remaining mobile image-delivery warning without changing layout.
 - The support chat widget is loaded after idle unless chat query params are present, while keeping query-driven chat flows immediate.
-- Analytics keeps lightweight GA/Facebook stubs early but loads third-party libraries with lazyOnload to reduce initial main-thread/network pressure.
+- Analytics keeps lightweight GA/Facebook stubs early but defers third-party library downloads until after initial mobile rendering pressure has passed.
   - jannat-ssr PM2 error log was clean after cutover.
   - Public rendered HTML checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed for home, rooms, offers, and client-payment.
 - Rollback notes:

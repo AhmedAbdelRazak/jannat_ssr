@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge, Button, Drawer } from "antd";
@@ -28,10 +29,11 @@ import { trackConversion } from "../lib/analyticsEvents";
 import { CONTACT_EMAIL, DEFAULT_LOGO, PHONE_DISPLAY, WHATSAPP_NUMBER } from "../lib/constants";
 import { labelFor } from "../lib/i18n";
 import { useJannatApp } from "./JannatAppProvider";
-import CartDrawer from "./CartDrawer";
 import CurrencySelector from "./CurrencySelector";
 import EmailText, { emailActionProps } from "./EmailText";
 import OptimizedImage from "./OptimizedImage";
+
+const CartDrawer = dynamic(() => import("./CartDrawer"), { ssr: false });
 
 const iconMap = {
 	home: Home,
@@ -94,6 +96,7 @@ export default function Header({ website = {}, hasOffers = false }) {
 		t,
 		toggleLanguage,
 		totals,
+		cartOpen,
 		setCartOpen,
 		hrefWithLanguage,
 		auth,
@@ -341,7 +344,7 @@ export default function Header({ website = {}, hasOffers = false }) {
 					</Link>
 				</div>
 			</Drawer>
-			<CartDrawer />
+			{cartOpen ? <CartDrawer /> : null}
 			</header>
 		</>
 	);
