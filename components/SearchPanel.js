@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Baby, CalendarDays, Search, Users } from "lucide-react";
 import { trackConversion } from "../lib/analyticsEvents";
@@ -44,21 +44,44 @@ export default function SearchPanel({ hotels = [], roomTypes = [], compact = fal
 	};
 
 	const destinations = useMemo(() => hotelDestinationOptions(isArabic), [isArabic]);
-
-	const [destination, setDestination] = useState(() => {
+	const defaultDestination = useMemo(() => {
 		const normalizedDefault = normalizeHotelDestination(defaults.destination);
 		return normalizedDefault || DEFAULT_SEARCH_DESTINATION;
-	});
-	const [checkIn, setCheckIn] = useState(parseDate(defaults.startDate, 1));
-	const [checkOut, setCheckOut] = useState(() => {
+	}, [defaults.destination]);
+	const defaultCheckIn = useMemo(() => parseDate(defaults.startDate, 1), [defaults.startDate]);
+	const defaultCheckOut = useMemo(() => {
 		const start = parseDate(defaults.startDate, 1);
 		const end = parseDate(defaults.endDate, 7);
 		return end > start ? end : addDays(start, 1);
-	});
-	const [roomType, setRoomType] = useState(defaults.roomType || "all");
-	const [adults, setAdults] = useState(Number(defaults.adults || 1));
-	const [children, setChildren] = useState(Number(defaults.children || 0));
+	}, [defaults.endDate, defaults.startDate]);
+	const defaultRoomType = defaults.roomType || "all";
+	const defaultAdults = Number(defaults.adults || 1);
+	const defaultChildren = Number(defaults.children || 0);
+
+	const [destination, setDestination] = useState(defaultDestination);
+	const [checkIn, setCheckIn] = useState(defaultCheckIn);
+	const [checkOut, setCheckOut] = useState(defaultCheckOut);
+	const [roomType, setRoomType] = useState(defaultRoomType);
+	const [adults, setAdults] = useState(defaultAdults);
+	const [children, setChildren] = useState(defaultChildren);
 	const [submitted, setSubmitted] = useState(false);
+
+	useEffect(() => {
+		setDestination(defaultDestination);
+		setCheckIn(defaultCheckIn);
+		setCheckOut(defaultCheckOut);
+		setRoomType(defaultRoomType);
+		setAdults(defaultAdults);
+		setChildren(defaultChildren);
+		setSubmitted(false);
+	}, [
+		defaultAdults,
+		defaultCheckIn,
+		defaultCheckOut,
+		defaultChildren,
+		defaultDestination,
+		defaultRoomType,
+	]);
 
 	const handleCheckInChange = (event) => {
 		const nextCheckIn = parseDate(event.target.value, 1);

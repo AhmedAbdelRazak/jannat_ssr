@@ -28,6 +28,9 @@ const LANGUAGE_KEY = "jannatBookingLanguage";
 const CURRENCY_KEY = "selectedCurrency";
 const CART_KEY = "jannatBookingCart";
 const AUTH_KEY = "jannatBookingAuth";
+const LATIN_FONT_FAMILY = '"Inter", "Segoe UI", Arial, sans-serif';
+const ARABIC_FONT_FAMILY =
+	'"Droid Arabic Kufi", "Noto Kufi Arabic", "Cairo", "Tajawal", "Segoe UI", Arial, sans-serif';
 
 const dateOffset = (days) => {
 	const date = new Date();
@@ -540,10 +543,7 @@ export function JannatAppProvider({ children, initialLanguage = "en" }) {
 					colorPrimary: "#102033",
 					colorInfo: "#0b8f6a",
 					colorSuccess: "#0b8f6a",
-					fontFamily:
-						language === "ar"
-							? '"Tajawal", "Cairo", "Noto Kufi Arabic", "Segoe UI", Arial, sans-serif'
-							: '"Inter", "Segoe UI", Arial, sans-serif',
+					fontFamily: language === "ar" ? ARABIC_FONT_FAMILY : LATIN_FONT_FAMILY,
 				},
 			}}
 		>

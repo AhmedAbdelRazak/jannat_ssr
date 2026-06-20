@@ -34,17 +34,29 @@ const minPrice = (hotel = {}) => {
 };
 const PAGE_SIZE = 15;
 const DEFAULT_HOTEL_DESTINATION = "Makkah";
+const normalizeExplorerDestination = (value = "") => {
+	if (String(value || "").trim().toLowerCase() === "all") return "All";
+	return normalizeHotelDestination(value) || DEFAULT_HOTEL_DESTINATION;
+};
 
-export default function HotelExplorer({ hotels = [] }) {
+export default function HotelExplorer({ hotels = [], initialDestination = DEFAULT_HOTEL_DESTINATION }) {
 	const { t, isArabic } = useJannatApp();
 	const destinations = useMemo(
 		() => [{ label: t("all"), value: "All" }, ...hotelDestinationOptions(isArabic)],
 		[isArabic, t]
 	);
+	const normalizedInitialDestination = useMemo(
+		() => normalizeExplorerDestination(initialDestination),
+		[initialDestination]
+	);
 	const [query, setQuery] = useState("");
-	const [destination, setDestination] = useState(DEFAULT_HOTEL_DESTINATION);
+	const [destination, setDestination] = useState(normalizedInitialDestination);
 	const [sort, setSort] = useState("recommended");
 	const [page, setPage] = useState(1);
+
+	useEffect(() => {
+		setDestination(normalizedInitialDestination);
+	}, [normalizedInitialDestination]);
 
 	useEffect(() => {
 		setPage(1);

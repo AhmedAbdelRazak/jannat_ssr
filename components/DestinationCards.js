@@ -39,22 +39,13 @@ const destinations = HOTEL_DESTINATIONS.map((destination) => ({
 }));
 
 export default function DestinationCards() {
-	const { isArabic, language, currency, hrefWithLanguage } = useJannatApp();
+	const { isArabic, hrefWithLanguage } = useJannatApp();
 	const startDate = dateOffset(1);
 	const endDate = dateOffset(7);
 
 	const destinationHref = (destination) => {
-		const params = new URLSearchParams({
-			destination,
-			startDate,
-			endDate,
-			roomType: "all",
-			adults: "1",
-			children: "0",
-			lang: language,
-			currency,
-		});
-		return hrefWithLanguage(`/rooms?${params.toString()}`);
+		const params = new URLSearchParams({ destination });
+		return hrefWithLanguage(`/our-hotels?${params.toString()}`);
 	};
 
 	const trackDestination = (destination) => {
