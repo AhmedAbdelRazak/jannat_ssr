@@ -361,6 +361,29 @@ const messageKey = (message = {}) =>
 	message?.clientTag ||
 	`${message?.date || ""}:${message?.messageBy?.customerEmail || ""}:${message?.message || ""}`;
 
+const renderMessageWithLinks = (text = "") => {
+	const safeText = typeof text === "string" ? text : "";
+	if (!safeText) return null;
+	const linkRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s]+)/g;
+	return safeText.split(linkRegex).map((part, index) => {
+		const markdown = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+		if (markdown) {
+			return (
+				<a key={index} href={markdown[2]} target="_blank" rel="noopener noreferrer">
+					{markdown[1]}
+				</a>
+			);
+		}
+		return /^https?:\/\//.test(part) ? (
+			<a key={index} href={part} target="_blank" rel="noopener noreferrer">
+				{part}
+			</a>
+		) : (
+			part
+		);
+	});
+};
+
 export default function SupportWidget({ hotels = [] }) {
 	const { isArabic } = useJannatApp();
 	const siteDefaultChatLanguage = isArabic ? "Arabic" : "English";
@@ -958,7 +981,7 @@ export default function SupportWidget({ hotels = [] }) {
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
 											<span>{sender}</span>
-											<p dir="auto">{text}</p>
+											<p dir="auto">{renderMessageWithLinks(text)}</p>
 											{showQuickReplies ? (
 												<div className="quick-replies">
 													{quickReplies.map((quickReply) => (
@@ -1515,6 +1538,23 @@ export default function SupportWidget({ hotels = [] }) {
 					white-space: pre-wrap;
 					line-height: 1.45;
 					font-size: 14px;
+				}
+
+				.bubble p a {
+					color: var(--zad-green);
+					font-weight: 950;
+					text-decoration: underline;
+					text-underline-offset: 2px;
+					overflow-wrap: anywhere;
+				}
+
+				.bubble p a:hover,
+				.bubble p a:focus-visible {
+					color: #087e60;
+				}
+
+				.bubble.guest p a {
+					color: #ffffff;
 				}
 
 				.quick-replies {
