@@ -1187,17 +1187,20 @@ export default function SupportWidget({ hotels = [] }) {
 					right: 0;
 					bottom: 62px;
 					width: min(410px, calc(100vw - 28px));
-					max-height: min(720px, calc(100vh - 112px));
+					max-height: min(720px, calc(100dvh - 92px));
+					min-height: 0;
 					display: flex;
 					flex-direction: column;
 					background: #fff;
 					border: 1px solid rgba(36, 84, 125, 0.16);
 					border-radius: 8px;
 					overflow: hidden;
+					overscroll-behavior: contain;
 					box-shadow: 0 24px 55px rgba(8, 9, 13, 0.26);
 				}
 
 				.support-head {
+					flex: 0 0 auto;
 					color: #fff;
 					padding: 16px 18px;
 					background: linear-gradient(135deg, var(--zad-blue), var(--zad-green));
@@ -1265,9 +1268,29 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				.start-form {
+					flex: 1 1 auto;
+					min-height: 0;
+					overflow-y: auto;
+					overscroll-behavior: contain;
+					scrollbar-width: thin;
+					scrollbar-color: rgba(36, 84, 125, 0.24) transparent;
 					display: grid;
 					gap: 12px;
 					background: #fff;
+				}
+
+				.start-form::-webkit-scrollbar {
+					width: 8px;
+				}
+
+				.start-form::-webkit-scrollbar-track {
+					background: transparent;
+				}
+
+				.start-form::-webkit-scrollbar-thumb {
+					border-radius: 999px;
+					background: rgba(36, 84, 125, 0.22);
+					border: 2px solid rgba(255, 255, 255, 0.8);
 				}
 
 				.support-field {
@@ -1498,6 +1521,9 @@ export default function SupportWidget({ hotels = [] }) {
 					width: 100%;
 					min-height: 48px;
 					margin-top: 2px;
+					position: sticky;
+					bottom: 0;
+					z-index: 2;
 				}
 
 				.messages {
@@ -1588,6 +1614,7 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				.reply-form {
+					flex: 0 0 auto;
 					display: grid;
 					grid-template-columns: 1fr 44px;
 					gap: 8px;
@@ -1623,6 +1650,7 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				.notice {
+					flex: 0 0 auto;
 					margin: 0;
 					padding: 12px 16px;
 					color: #05603a;
@@ -1678,9 +1706,10 @@ export default function SupportWidget({ hotels = [] }) {
 						position: fixed;
 						left: 12px;
 						right: 12px;
+						top: max(12px, env(safe-area-inset-top));
 						bottom: 72px;
 						width: auto;
-						max-height: calc(100dvh - 96px);
+						max-height: none;
 					}
 
 					.start-form,
@@ -1703,6 +1732,72 @@ export default function SupportWidget({ hotels = [] }) {
 					.support-language-icon {
 						width: 32px;
 						height: 32px;
+					}
+				}
+
+				@media (max-height: 760px) and (min-width: 641px) {
+					.support-root {
+						right: 14px;
+						bottom: 12px;
+					}
+
+					.support-panel {
+						position: fixed;
+						top: max(10px, env(safe-area-inset-top));
+						right: 14px;
+						bottom: 70px;
+						width: min(410px, calc(100vw - 28px));
+						max-height: none;
+					}
+
+					.support-head {
+						padding: 12px 14px;
+					}
+
+					.start-form,
+					.messages {
+						padding: 12px;
+					}
+
+					.start-form {
+						gap: 10px;
+					}
+
+					.support-field input,
+					.support-field select,
+					.support-language-select {
+						min-height: 42px;
+					}
+
+					.support-field textarea {
+						min-height: 68px;
+						max-height: 120px;
+					}
+
+					.messages {
+						min-height: 160px;
+					}
+				}
+
+				@media (max-height: 760px) and (max-width: 640px) {
+					.support-panel {
+						top: max(10px, env(safe-area-inset-top));
+						bottom: 68px;
+						max-height: none;
+					}
+
+					.support-head {
+						padding: 12px 14px;
+					}
+
+					.start-form,
+					.messages {
+						padding: 12px;
+					}
+
+					.support-field textarea {
+						min-height: 68px;
+						max-height: 120px;
 					}
 				}
 			`}</style>

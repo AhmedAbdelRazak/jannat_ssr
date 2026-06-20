@@ -9885,3 +9885,41 @@ html[dir="rtl"] .legal-hero p {
 		padding: 10px;
 	}
 }
+
+@media (max-height: 760px) and (min-width: 861px) {
+	.about-contact-card,
+	.contact-support-card,
+	.checkout-summary,
+	.client-payment-summary,
+	.client-payment-panel,
+	.legal-tabs,
+	.trust-panel,
+	.listing-copy {
+		position: static;
+		top: auto;
+		max-height: none;
+		overflow: visible;
+	}
+
+	.checkout-items {
+		max-height: none;
+		overflow: visible;
+	}
+
+	.auth-page,
+	.client-payment-page {
+		min-height: auto;
+	}
+
+	.hero {
+		min-height: min(620px, calc(100svh - 8px));
+	}
+}
+
+@media (max-height: 620px) {
+	.hero-content,
+	.page-hero .container {
+		padding-top: clamp(84px, 16svh, 118px);
+		padding-bottom: clamp(48px, 12svh, 86px);
+	}
+}
