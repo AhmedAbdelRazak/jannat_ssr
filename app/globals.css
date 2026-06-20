@@ -1583,11 +1583,73 @@ html[dir="rtl"] .desktop-auth-state {
 }
 
 @media (max-width: 760px) {
+	.hero-slide {
+		transform: none;
+		transition: opacity 420ms ease;
+		will-change: auto;
+	}
+
+	.hero-slide.active,
+	.hero-slide.leaving {
+		animation: none;
+		transform: none;
+	}
+
+	.hero-sky-effects {
+		contain: layout paint style;
+		opacity: 0.96;
+	}
+
+	.hero-sky-effects.is-full .hero-shine-star:nth-child(n + 13),
+	.hero-sky-effects.is-compact .hero-shine-star:nth-child(n + 11) {
+		display: none;
+	}
+
+	.hero-shine-star,
+	.hero-sky-effects.is-compact .hero-shine-star {
+		width: max(calc(var(--star-size) * 0.68), 5px);
+		height: max(calc(var(--star-size) * 0.68), 5px);
+		opacity: 0.74;
+		filter: none;
+		box-shadow:
+			0 0 7px currentColor,
+			0 0 14px rgba(255, 255, 255, 0.2);
+		will-change: auto;
+		animation: none;
+	}
+
+	.hero-shine-star::before {
+		inset: -145%;
+		background:
+			radial-gradient(circle, currentColor 0 8%, rgba(255, 255, 255, 0.22) 17%, rgba(255, 255, 255, 0.1) 32%, transparent 64%);
+		opacity: 0.36;
+		transform: scale(0.86);
+		filter: none;
+		will-change: auto;
+		animation: none;
+	}
+
+	.hero-shine-star::after {
+		inset: 24%;
+		opacity: 0.46;
+		filter: none;
+		animation: none;
+	}
+
 	.hero-crescent {
 		top: clamp(76px, 10vh, 112px);
 		inset-inline-end: 18px;
 		width: clamp(46px, 14vw, 62px);
 		opacity: 0.84;
+		filter:
+			drop-shadow(0 0 10px rgba(246, 221, 158, 0.28))
+			drop-shadow(0 0 22px rgba(246, 221, 158, 0.16));
+	}
+
+	.hero-crescent-glint {
+		opacity: 0.72;
+		filter: none;
+		animation: none;
 	}
 }
 
@@ -8622,9 +8684,12 @@ html[dir="rtl"] .summary-count {
 	.hero-actions {
 		gap: 9px;
 		margin-top: 18px;
+		max-width: min(100%, 360px);
 	}
 
 	.hero-actions .btn {
+		flex: 1 1 calc(50% - 5px);
+		justify-content: center;
 		min-height: 44px;
 		padding-inline: 14px;
 		font-size: 13px;
@@ -8874,15 +8939,22 @@ html[dir="rtl"] .summary-count {
 		display: none;
 	}
 
-	.hero h1,
+	.hero h1 {
+		max-width: 100%;
+		font-size: clamp(31px, 9.6vw, 43px);
+		line-height: 1.06;
+		text-wrap: balance;
+		overflow-wrap: break-word;
+	}
+
 	.hotel-hero h1,
 	.page-hero h1 {
 		font-size: clamp(34px, 12vw, 54px);
 	}
 
 	html[dir="rtl"] .hero h1 {
-		font-size: clamp(28px, 9.5vw, 40px);
-		line-height: 1.1;
+		font-size: clamp(28px, 8.8vw, 36px);
+		line-height: 1.14;
 	}
 
 	html[dir="rtl"] .page-hero h1,

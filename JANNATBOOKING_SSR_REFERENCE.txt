@@ -1,5 +1,5 @@
 JANNATBOOKING SSR REFERENCE
-Updated: 2026-06-19
+Updated: 2026-06-20
 Project path: D:\JannatBooking\jannatbooking_ssr
 Related backend path: D:\JannatBooking\hotels_backend
 Related legacy public SPA path: D:\JannatBooking\jannatbooking_frontend
@@ -454,6 +454,12 @@ PageSpeed And Agentic Update - 2026-06-19
 - Next image device sizes include 384px and 512px candidates so mobile hotel cards can avoid over-downloading 640px images when a smaller generated image is enough.
 - Decorative crescent glints are SVG paths, not SVG text, so Lighthouse should not treat them as LCP text.
 - Decorative hero stars are CSS-drawn sparkle shapes with empty DOM nodes, not literal "*" text, so the visual star effect stays while LCP and agent parsers do not see the sky as content text.
+- Mobile hero performance follow-up, 2026-06-20:
+  - Desktop keeps the full animated hero star/crescent and subtle hero image zoom treatment.
+  - At phone/tablet widths, app/globals.css disables the costly hero slide zoom, animated star filters, halo pulses, and white-flash loops.
+  - Mobile keeps a premium static glow by scaling star sizes down, reducing visible star count, adding lightweight box-shadow glow, and containing hero sky paint work.
+  - Home hero mobile type and CTA sizing were tightened so English and Arabic text stays polished inside the first viewport.
+  - Validation used npm run build plus Playwright mobile checks for /?lang=en and /?lang=ar, with a desktop computed-style check confirming desktop animations remain active.
 - Generic hotel grid cards no longer force the first two hotel images to high priority; the hero image keeps first-load priority, while below-fold hotel cards can load normally.
 - The cart drawer is split out of the homepage/header initial bundle and loads only when the cart opens, keeping Ant Design date-picker/drawer work off the first mobile render.
 - Google Analytics and Facebook Pixel keep early queue stubs, then load their external libraries after first interaction, tab hide, or a short delay. This preserves queued conversion calls while reducing initial mobile main-thread pressure.

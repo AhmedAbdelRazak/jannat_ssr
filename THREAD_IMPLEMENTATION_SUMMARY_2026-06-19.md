@@ -6,6 +6,8 @@ This document captures the implementation work completed while preparing the SSR
 
 - Added the shared hero sky treatment with a crescent and subtle static star glow/fade animation across hero components.
 - Tuned star density and sizing so image-backed heroes stay readable and the stars feel layered rather than noisy.
+- Follow-up on 2026-06-20: optimized the hero sky treatment for cell phones only. Desktop keeps the full animated star glow, crescent glints, and hero image zoom, while phone/tablet breakpoints use fewer smaller stars, static lightweight glow, no animated filters, no star flash loops, and no mobile hero image zoom.
+- Follow-up on 2026-06-20: tightened mobile home hero text and CTA sizing in English and Arabic so the title, copy, and two buttons remain balanced in the first viewport.
 - Improved room search defaults so Makkah is selected by default for general searches.
 - Enhanced the global currency selector styling and behavior, with SAR as the default display currency.
 - Added more supported display currencies for key guest markets: SAR, USD, EUR, GBP, JOD, DZD, EGP, PKR, INR, MYR, and IDR.
@@ -105,6 +107,10 @@ This document captures the implementation work completed while preparing the SSR
 ## Validation Performed
 
 - `npm run build` passed in `jannatbooking_ssr`.
+- 2026-06-20 mobile hero follow-up validation:
+  - `npm run build` passed in `jannatbooking_ssr`.
+  - Playwright mobile screenshots for `/?lang=en` and `/?lang=ar` confirmed smaller glowy stars and clean hero text/buttons.
+  - Playwright computed styles confirmed mobile star animations and filters are disabled, visible mobile stars are reduced, and desktop star/hero animations remain active.
 - `npm run build` passed in `hotels_frontend`.
 - `node --check controllers/paypal_reservation.js` passed in `hotels_backend`.
 - Browser smoke test confirmed:
@@ -118,4 +124,3 @@ This document captures the implementation work completed while preparing the SSR
 - SSR public app: `D:\JannatBooking\jannatbooking_ssr`
 - Backend API: `D:\JannatBooking\hotels_backend`
 - Hotel PMS/admin app: `D:\JannatBooking\hotels_frontend`
-
