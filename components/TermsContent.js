@@ -221,7 +221,7 @@ const normalizeLegalHtml = (html = "", language = "en", tab = "guest") => {
 
 	return raw
 		.replace(/\bJannat\s+Booking\b/g, ARABIC_BRAND_NAME)
-		.replace(/جنة\s+بوك(?:ينج|نج)/g, ARABIC_BRAND_NAME)
+		.replace(/\u062c\u0646\u0629\s+\u0628\u0648\u0643(?:\u064a\u0646\u062c|\u0646\u062c)/g, ARABIC_BRAND_NAME)
 		.replace(/حجز\s+جنات/g, ARABIC_BRAND_NAME)
 		.replace(/official@jannatbooking\.com/gi, CONTACT_EMAIL);
 };

@@ -366,7 +366,7 @@ export default function AboutContent({
 	const htmlWithDynamicCounts = isArabic
 		? rawHtml
 				.replace(/\bJannat\s+Booking\b/g, ARABIC_BRAND_NAME)
-				.replace(/جنة\s+بوك(?:ينج|نج)/g, ARABIC_BRAND_NAME)
+				.replace(/\u062c\u0646\u0629\s+\u0628\u0648\u0643(?:\u064a\u0646\u062c|\u0646\u062c)/g, ARABIC_BRAND_NAME)
 				.replace(/حجز\s+جنات/g, ARABIC_BRAND_NAME)
 				.replace(/أكثر\s+من\s*10,000\s+حجز/g, normalizedReservationCount ? `<bdi dir="ltr">${formatReservationCount(normalizedReservationCount)}</bdi> حجز` : "سجل حجوزات متنام")
 		: rawHtml.replace(
