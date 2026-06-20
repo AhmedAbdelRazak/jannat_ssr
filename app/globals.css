@@ -59,13 +59,26 @@ body {
 	font-family: var(--jannat-latin-font);
 }
 
-html:is([dir="rtl"], [lang="ar"]) body,
-html:is([dir="rtl"], [lang="ar"]) .ant-app,
-html:is([dir="rtl"], [lang="ar"]) .ant-select-dropdown,
-html:is([dir="rtl"], [lang="ar"]) .ant-picker-dropdown,
-html:is([dir="rtl"], [lang="ar"]) .ant-modal,
-html:is([dir="rtl"], [lang="ar"]) .ant-drawer,
-:where([dir="rtl"]) {
+html:where([dir="rtl"], [lang="ar"]) {
+	font-family: var(--jannat-arabic-font);
+}
+
+html:where([dir="rtl"], [lang="ar"]) body,
+html:where([dir="rtl"], [lang="ar"]) body :where(*, *::before, *::after),
+html:where([dir="rtl"], [lang="ar"]) :where(
+	.ant-app,
+	.ant-select-dropdown,
+	.ant-picker-dropdown,
+	.ant-modal,
+	.ant-drawer,
+	.ant-message,
+	.ant-notification,
+	button,
+	input,
+	select,
+	textarea
+),
+:where([dir="rtl"], [lang="ar"]) {
 	font-family: var(--jannat-arabic-font);
 }
 
