@@ -33,6 +33,7 @@ import {
 	currencyConversion,
 	getPayPalClientToken,
 	payReservationViaPayPalLink,
+	recoverReservationPaymentAccountSession,
 } from "../lib/api";
 import { trackConversion } from "../lib/analyticsEvents";
 import { safeNumber } from "../lib/booking";
@@ -940,6 +941,7 @@ export default function ClientPaymentLinkClient({
 		setAuthSession,
 		currency,
 		formatCurrency,
+		isSignedIn,
 	} = useJannatApp();
 	const labels = text[isArabic ? "ar" : "en"];
 	const detailLabels = isArabic
@@ -978,6 +980,7 @@ export default function ClientPaymentLinkClient({
 	const [reloadKey, setReloadKey] = useState(0);
 	const [submitting, setSubmitting] = useState(false);
 	const paymentLinkViewTrackedRef = useRef(false);
+	const accountRecoveryAttemptedRef = useRef(false);
 
 	const mismatch =
 		reservation?.confirmation_number &&
@@ -1131,6 +1134,39 @@ export default function ClientPaymentLinkClient({
 		!conversionError &&
 		isPositive(selectedUsdAmount) &&
 		!submitting;
+
+	useEffect(() => {
+		if (
+			!hasReservation ||
+			!isFullyPaid ||
+			isSignedIn ||
+			accountRecoveryAttemptedRef.current
+		) {
+			return;
+		}
+		accountRecoveryAttemptedRef.current = true;
+		recoverReservationPaymentAccountSession({
+			reservationId: reservation?._id || reservationId,
+			confirmation: reservation?.confirmation_number || confirmation,
+		})
+			.then((response) => {
+				if (response?.accountSession?.token && response?.accountSession?.user?._id) {
+					setAuthSession(response.accountSession);
+				}
+			})
+			.catch((error) => {
+				console.warn("Client payment account recovery skipped:", error?.message || error);
+			});
+	}, [
+		confirmation,
+		hasReservation,
+		isFullyPaid,
+		isSignedIn,
+		reservation?._id,
+		reservation?.confirmation_number,
+		reservationId,
+		setAuthSession,
+	]);
 
 	useEffect(() => {
 		if (paymentLinkViewTrackedRef.current || !hasReservation || isFullyPaid) return;
