@@ -120,7 +120,7 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 	const labels = {
 		perNight: isArabic ? "/ \u0644\u064a\u0644\u0629" : "/ night",
 		freeCancellation: isArabic ? "\u0625\u0644\u063a\u0627\u0621 \u0645\u062c\u0627\u0646\u064a" : "Free cancellation",
-		chat: isArabic ? "تحدث مباشرة مع الاستقبال" : "Reception Chat",
+		chat: isArabic ? "تحدث مع الاستقبال" : "Chat With Reception",
 		available: isArabic ? "\u0645\u062a\u0627\u062d" : "Available",
 		showMore: isArabic ? "\u0639\u0631\u0636 \u0623\u0643\u062b\u0631" : "Show more",
 		showLess: isArabic ? "\u0639\u0631\u0636 \u0623\u0642\u0644" : "Show less",

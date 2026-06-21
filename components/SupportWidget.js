@@ -122,6 +122,11 @@ const CHAT_COPY = {
 		startChat: "ابدأ المحادثة",
 		typeMessage: "اكتب رسالتك",
 		endChat: "إنهاء المحادثة",
+		rateConversation: "كيف كانت هذه المحادثة؟",
+		submitRating: "إرسال التقييم",
+		skipRating: "تخطي",
+		ratingThanks: "شكرا لتقييمك. تم إغلاق المحادثة.",
+		emojiPicker: "إضافة رمز تعبيري",
 		chatClosed: "تم إغلاق هذه المحادثة.",
 		requiredError: "يرجى إضافة الاسم وبيانات التواصل والفندق والرسالة.",
 		hotelError: "يرجى اختيار فندق من القائمة.",
@@ -152,6 +157,11 @@ const CHAT_COPY = {
 		startChat: "Iniciar chat",
 		typeMessage: "Escribe tu mensaje",
 		endChat: "Terminar chat",
+		rateConversation: "Como fue esta conversacion?",
+		submitRating: "Enviar calificacion",
+		skipRating: "Omitir",
+		ratingThanks: "Gracias por tu comentario. Este chat se ha cerrado.",
+		emojiPicker: "Agregar emoji",
 		chatClosed: "Este chat se ha cerrado.",
 		requiredError: "Agrega tu nombre, contacto, hotel y mensaje.",
 		hotelError: "Elige un hotel de Jannat de la lista.",
@@ -182,6 +192,11 @@ const CHAT_COPY = {
 		startChat: "Demarrer le chat",
 		typeMessage: "Ecrivez votre message",
 		endChat: "Terminer le chat",
+		rateConversation: "Comment s'est passee cette conversation ?",
+		submitRating: "Envoyer la note",
+		skipRating: "Ignorer",
+		ratingThanks: "Merci pour votre avis. Ce chat est ferme.",
+		emojiPicker: "Ajouter un emoji",
 		chatClosed: "Ce chat est ferme.",
 		requiredError: "Ajoutez votre nom, contact, hotel et message.",
 		hotelError: "Choisissez un hotel Jannat dans la liste.",
@@ -212,6 +227,11 @@ const CHAT_COPY = {
 		startChat: "چیٹ شروع کریں",
 		typeMessage: "اپنا پیغام لکھیں",
 		endChat: "چیٹ ختم کریں",
+		rateConversation: "\u06cc\u06c1 \u06af\u0641\u062a\u06af\u0648 \u06a9\u06cc\u0633\u06cc \u0631\u06c1\u06cc\u061f",
+		submitRating: "\u0631\u06cc\u0679\u0646\u06af \u0628\u06be\u06cc\u062c\u06cc\u06ba",
+		skipRating: "\u0686\u06be\u0648\u0691 \u062f\u06cc\u06ba",
+		ratingThanks: "\u0622\u067e \u06a9\u06cc \u0631\u0627\u0626\u06d2 \u06a9\u0627 \u0634\u06a9\u0631\u06cc\u06c1\u06d4 \u06cc\u06c1 \u0686\u06cc\u0679 \u0628\u0646\u062f \u06a9\u0631 \u062f\u06cc \u06af\u0626\u06cc \u06c1\u06d2\u06d4",
+		emojiPicker: "\u0627\u06cc\u0645\u0648\u062c\u06cc \u0634\u0627\u0645\u0644 \u06a9\u0631\u06cc\u06ba",
 		chatClosed: "یہ چیٹ بند ہو چکی ہے۔",
 		requiredError: "براہ کرم نام، رابطہ، ہوٹل اور پیغام شامل کریں۔",
 		hotelError: "براہ کرم فہرست سے Jannat ہوٹل منتخب کریں۔",
@@ -242,6 +262,11 @@ const CHAT_COPY = {
 		startChat: "चैट शुरू करें",
 		typeMessage: "अपना संदेश लिखें",
 		endChat: "चैट समाप्त करें",
+		rateConversation: "\u092f\u0939 \u092c\u093e\u0924\u091a\u0940\u0924 \u0915\u0948\u0938\u0940 \u0930\u0939\u0940?",
+		submitRating: "\u0930\u0947\u091f\u093f\u0902\u0917 \u092d\u0947\u091c\u0947\u0902",
+		skipRating: "\u091b\u094b\u0921\u093c\u0947\u0902",
+		ratingThanks: "\u0906\u092a\u0915\u0940 \u092a\u094d\u0930\u0924\u093f\u0915\u094d\u0930\u093f\u092f\u093e \u0915\u0947 \u0932\u093f\u090f \u0927\u0928\u094d\u092f\u0935\u093e\u0926\u0964 \u092f\u0939 \u091a\u0948\u091f \u092c\u0902\u0926 \u0915\u0930 \u0926\u0940 \u0917\u0908 \u0939\u0948\u0964",
+		emojiPicker: "\u0907\u092e\u094b\u091c\u0940 \u091c\u094b\u0921\u093c\u0947\u0902",
 		chatClosed: "यह चैट बंद हो गई है।",
 		requiredError: "कृपया नाम, संपर्क, होटल और संदेश जोड़ें।",
 		hotelError: "कृपया सूची से Jannat होटल चुनें।",
@@ -272,6 +297,11 @@ const CHAT_COPY = {
 		startChat: "Mulai chat",
 		typeMessage: "Ketik pesan Anda",
 		endChat: "Akhiri chat",
+		rateConversation: "Bagaimana percakapan ini?",
+		submitRating: "Kirim rating",
+		skipRating: "Lewati",
+		ratingThanks: "Terima kasih atas masukan Anda. Chat ini telah ditutup.",
+		emojiPicker: "Tambah emoji",
 		chatClosed: "Chat ini telah ditutup.",
 		requiredError: "Mohon isi nama, kontak, hotel, dan pesan.",
 		hotelError: "Mohon pilih hotel Jannat dari daftar.",
@@ -302,6 +332,11 @@ const CHAT_COPY = {
 		startChat: "Mulakan chat",
 		typeMessage: "Taip mesej anda",
 		endChat: "Tamatkan chat",
+		rateConversation: "Bagaimana perbualan ini?",
+		submitRating: "Hantar rating",
+		skipRating: "Langkau",
+		ratingThanks: "Terima kasih atas maklum balas anda. Chat ini telah ditutup.",
+		emojiPicker: "Tambah emoji",
 		chatClosed: "Chat ini telah ditutup.",
 		requiredError: "Sila isi nama, kontak, hotel, dan mesej.",
 		hotelError: "Sila pilih hotel Jannat daripada senarai.",
@@ -1252,6 +1287,8 @@ export default function SupportWidget({ hotels = [] }) {
 									onKeyDown={handleReplyKeyDown}
 									placeholder={chatCopy.typeMessage}
 									enterKeyHint={mobileComposer ? "enter" : "send"}
+									inputMode="text"
+									spellCheck
 								/>
 								<button className="send-reply" type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
 									<Send size={18} />
@@ -1497,7 +1534,13 @@ export default function SupportWidget({ hotels = [] }) {
 					align-items: center;
 					justify-content: center;
 					gap: 6px;
-					box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+					border-color: rgba(255, 196, 205, 0.34);
+					background:
+						linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 32%),
+						linear-gradient(135deg, #8f1423 0%, #c62a3f 56%, #7f1020 100%);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.22),
+						0 8px 18px rgba(127, 16, 32, 0.24);
 					transition:
 						transform 160ms ease,
 						background 160ms ease,
@@ -1513,19 +1556,24 @@ export default function SupportWidget({ hotels = [] }) {
 				.support-end-chat:hover:not(:disabled),
 				.support-end-chat:focus-visible {
 					transform: translateY(-1px);
-					background: rgba(255, 255, 255, 0.18);
+					background:
+						linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 32%),
+						linear-gradient(135deg, #9e1929 0%, #db364b 56%, #8d1526 100%);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.26),
+						0 10px 22px rgba(127, 16, 32, 0.3);
 				}
 
 				.support-end-chat.is-ready {
-					color: #071526;
+					color: #fff;
 					background:
-						linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 248, 0.92)),
-						#ffffff;
-					border-color: rgba(255, 255, 255, 0.74);
+						linear-gradient(115deg, rgba(255, 255, 255, 0.24), transparent 28%, rgba(255, 255, 255, 0.16) 48%, transparent 68%),
+						linear-gradient(135deg, #9d1628 0%, #e43a52 58%, #891426 100%);
+					border-color: rgba(255, 214, 221, 0.58);
 					box-shadow:
-						inset 0 1px rgba(255, 255, 255, 0.95),
-						0 0 0 1px rgba(255, 93, 114, 0.18),
-						0 10px 22px rgba(8, 9, 13, 0.16);
+						inset 0 1px rgba(255, 255, 255, 0.3),
+						0 0 0 1px rgba(255, 169, 184, 0.18),
+						0 10px 22px rgba(127, 16, 32, 0.28);
 					animation: jannatHeartGlow 1.7s ease-in-out infinite;
 				}
 
@@ -1551,15 +1599,15 @@ export default function SupportWidget({ hotels = [] }) {
 					0%,
 					100% {
 						box-shadow:
-							inset 0 1px rgba(255, 255, 255, 0.95),
-							0 0 0 1px rgba(255, 93, 114, 0.18),
-							0 10px 22px rgba(8, 9, 13, 0.16);
+							inset 0 1px rgba(255, 255, 255, 0.3),
+							0 0 0 1px rgba(255, 169, 184, 0.18),
+							0 10px 22px rgba(127, 16, 32, 0.28);
 					}
 					45% {
 						box-shadow:
-							inset 0 1px rgba(255, 255, 255, 0.95),
-							0 0 0 3px rgba(255, 93, 114, 0.14),
-							0 12px 26px rgba(8, 9, 13, 0.18);
+							inset 0 1px rgba(255, 255, 255, 0.32),
+							0 0 0 4px rgba(255, 169, 184, 0.14),
+							0 12px 26px rgba(127, 16, 32, 0.32);
 					}
 				}
 
@@ -1840,6 +1888,9 @@ export default function SupportWidget({ hotels = [] }) {
 					padding: 12px 13px;
 					line-height: 1.55;
 					resize: vertical;
+					white-space: pre-wrap;
+					overflow-wrap: anywhere;
+					word-break: break-word;
 				}
 
 				.support-form .btn {

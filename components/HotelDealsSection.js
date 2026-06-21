@@ -42,7 +42,7 @@ const dealText = (isArabic) =>
 				fixedDates: "\u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0639\u0631\u0636 \u0645\u062b\u0628\u062a\u0629",
 				gregorianDates: "\u0627\u0644\u0645\u064a\u0644\u0627\u062f\u064a",
 				add: "\u0623\u0636\u0641 \u0644\u0644\u0633\u0644\u0629",
-				ask: "\u0627\u0633\u062a\u0641\u0633\u0631 \u0644\u0644\u062d\u062c\u0632",
+				ask: "\u062a\u062d\u062f\u062b \u0645\u0639 \u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644",
 				viewHotel: "\u0639\u0631\u0636 \u0627\u0644\u0641\u0646\u062f\u0642",
 				dealsCount: "\u0639\u0631\u0648\u0636 \u0645\u062a\u0627\u062d\u0629",
 			}
@@ -65,7 +65,7 @@ const dealText = (isArabic) =>
 				fixedDates: "Offer dates are fixed",
 				gregorianDates: "Gregorian",
 				add: "Add to cart",
-				ask: "Ask to book",
+				ask: "Chat With Reception",
 				viewHotel: "View hotel",
 				dealsCount: "available deals",
 			};
