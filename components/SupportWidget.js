@@ -1967,16 +1967,30 @@ export default function SupportWidget({ hotels = [] }) {
 					min-width: 0;
 					border-radius: 8px;
 					padding: 9px 10px;
-					background: #fff;
-					border: 1px solid var(--zad-border);
+					background: #ffffff;
+					border: 1px solid rgba(36, 84, 125, 0.12);
 					overflow-wrap: anywhere;
+					box-shadow: 0 8px 18px rgba(15, 20, 35, 0.06);
+				}
+
+				.bubble.agent {
+					align-self: flex-start;
+					color: #152236;
+					background:
+						linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 250, 248, 0.96)),
+						#ffffff;
+					border-color: rgba(11, 143, 106, 0.18);
 				}
 
 				.bubble.guest {
+					align-self: flex-end;
 					margin-left: auto;
 					color: #fff;
-					background: var(--zad-blue);
-					border-color: var(--zad-blue);
+					background:
+						linear-gradient(135deg, #163b63 0%, #24547d 58%, #0b8f6a 100%),
+						var(--zad-blue);
+					border-color: rgba(20, 66, 102, 0.95);
+					box-shadow: 0 10px 22px rgba(13, 53, 86, 0.18);
 				}
 
 				.bubble span {
@@ -1984,6 +1998,14 @@ export default function SupportWidget({ hotels = [] }) {
 					font-size: 11px;
 					font-weight: 950;
 					margin-bottom: 4px;
+				}
+
+				.bubble.agent span {
+					color: #0b8f6a;
+				}
+
+				.bubble.guest span {
+					color: rgba(255, 255, 255, 0.86);
 				}
 
 				.bubble p {
