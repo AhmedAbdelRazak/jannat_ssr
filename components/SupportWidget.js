@@ -401,6 +401,60 @@ const messageKey = (message = {}) =>
 	message?.clientTag ||
 	`${message?.date || ""}:${message?.messageBy?.customerEmail || ""}:${message?.message || ""}`;
 
+const normalizedMessageText = (value = "") =>
+	String(value || "")
+		.trim()
+		.replace(/\s+/g, " ");
+
+const messageTimestamp = (message = {}) => {
+	const time = new Date(message?.date || 0).getTime();
+	return Number.isFinite(time) ? time : 0;
+};
+
+const messageFingerprint = (message = {}) =>
+	[
+		message?.isAi ? "ai" : message?.isSystem ? "system" : "guest",
+		String(message?.messageBy?.customerEmail || "").trim().toLowerCase(),
+		String(message?.messageBy?.userId || "").trim().toLowerCase(),
+		normalizedMessageText(message?.message),
+	].join("|");
+
+const sameVisibleMessage = (left = {}, right = {}) => {
+	const leftKey = messageKey(left);
+	const rightKey = messageKey(right);
+	if (leftKey && rightKey && leftKey === rightKey) return true;
+	if (messageFingerprint(left) !== messageFingerprint(right)) return false;
+	const leftTime = messageTimestamp(left);
+	const rightTime = messageTimestamp(right);
+	if (!leftTime || !rightTime) return true;
+	return Math.abs(leftTime - rightTime) <= 8000;
+};
+
+const mergeDuplicateMessage = (current = {}, incoming = {}) => {
+	const incomingReplies = quickRepliesForMessage(incoming);
+	return {
+		...current,
+		...incoming,
+		_id: incoming?._id || current?._id,
+		clientTag: incoming?.clientTag || current?.clientTag,
+		quickReplies: incomingReplies.length ? incoming.quickReplies : current.quickReplies,
+	};
+};
+
+const mergeConversationMessages = (current = [], incoming = []) => {
+	const next = Array.isArray(current) ? [...current] : [];
+	const rows = Array.isArray(incoming) ? incoming : [incoming];
+	rows.filter(Boolean).forEach((message) => {
+		const existingIndex = next.findIndex((row) => sameVisibleMessage(row, message));
+		if (existingIndex >= 0) {
+			next[existingIndex] = mergeDuplicateMessage(next[existingIndex], message);
+			return;
+		}
+		next.push(message);
+	});
+	return next;
+};
+
 const COMMON_CHAT_EMOJIS = [
 	"\uD83D\uDE0A",
 	"\uD83D\uDE4F",
@@ -781,7 +835,7 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 				if (!cancelled && Array.isArray(data?.conversation)) {
 					setCaseMeta(data);
-					setMessages(data.conversation);
+					setMessages((current) => mergeConversationMessages(current, data.conversation));
 				}
 			} catch (err) {
 				console.error(err);
@@ -803,11 +857,7 @@ export default function SupportWidget({ hotels = [] }) {
 		const onReceiveMessage = (message = {}) => {
 			if (message.caseId && String(message.caseId) !== String(caseId)) return;
 			setTypingStatus("");
-			setMessages((current) => {
-				const key = messageKey(message);
-				if (current.some((row) => messageKey(row) === key)) return current;
-				return [...current, message];
-			});
+			setMessages((current) => mergeConversationMessages(current, [message]));
 		};
 		const onTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
@@ -950,7 +1000,7 @@ export default function SupportWidget({ hotels = [] }) {
 			if (!res.ok || data?.error) throw new Error(data?.error || chatCopy.startError);
 			setCaseId(data._id);
 			setCaseMeta(data);
-			setMessages(Array.isArray(data.conversation) ? data.conversation : []);
+			setMessages(mergeConversationMessages([], data.conversation || []));
 			trackConversion(
 				"chatStart",
 				{
@@ -1038,7 +1088,7 @@ export default function SupportWidget({ hotels = [] }) {
 			const data = await res.json();
 			if (!res.ok || data?.error) throw new Error(data?.error || "Message failed.");
 			setCaseMeta(data);
-			setMessages(Array.isArray(data.conversation) ? data.conversation : []);
+			setMessages((current) => mergeConversationMessages(current, data.conversation || []));
 			setReply("");
 			setEmojiOpen(false);
 			emitTyping("");
@@ -1189,7 +1239,6 @@ export default function SupportWidget({ hotels = [] }) {
 					{notice ? <p className="notice">{notice}</p> : null}
 					{caseId ? (
 						<>
-							{renderChatLanguageSelect(true)}
 							{ratingVisible ? (
 								<div className="rating-panel" role="group" aria-label={chatCopy.rateConversation || feedbackCopy.rateConversation}>
 									<strong>{chatCopy.rateConversation || feedbackCopy.rateConversation}</strong>
@@ -1281,7 +1330,7 @@ export default function SupportWidget({ hotels = [] }) {
 								<textarea
 									ref={replyTextareaRef}
 									value={reply}
-									dir={selectedChatLanguageMeta.rtl ? "rtl" : "ltr"}
+									dir="auto"
 									rows={1}
 									onChange={handleReplyChange}
 									onKeyDown={handleReplyKeyDown}
