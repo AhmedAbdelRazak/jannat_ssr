@@ -391,13 +391,22 @@ const readableLinkLabel = (url = "", explicitLabel = "") => {
 	try {
 		const parsed = new URL(safeUrl);
 		const path = parsed.pathname.toLowerCase();
+		const hostname = parsed.hostname.toLowerCase();
 		if (path.includes("/single-reservation/") || path.includes("/single-reservations/")) {
 			return "Reservation Confirmation";
 		}
 		if (path.includes("/client-payment/")) return "Payment Link";
 		if (path.includes("/single-hotel/")) return "Hotel Details";
 		if (path.includes("/invoice")) return "Invoice";
-		return label && !/^https?:\/\//i.test(label) ? label : parsed.hostname.replace(/^www\./, "");
+		if (
+			hostname === "maps.app.goo.gl" ||
+			hostname === "maps.google.com" ||
+			(hostname.endsWith(".google.com") && path.startsWith("/maps")) ||
+			(hostname === "google.com" && path.startsWith("/maps"))
+		) {
+			return label && !/^https?:\/\//i.test(label) ? label : "Google Maps Location";
+		}
+		return label && !/^https?:\/\//i.test(label) ? label : hostname.replace(/^www\./, "");
 	} catch {
 		return label || "Open Link";
 	}
