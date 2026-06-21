@@ -404,7 +404,8 @@ const readableLinkLabel = (url = "", explicitLabel = "") => {
 			(hostname.endsWith(".google.com") && path.startsWith("/maps")) ||
 			(hostname === "google.com" && path.startsWith("/maps"))
 		) {
-			return label && !/^https?:\/\//i.test(label) ? label : "Google Maps Location";
+			if (label && !/^https?:\/\//i.test(label)) return label;
+			return path.startsWith("/maps/dir") ? "Google Maps Directions" : "Google Maps Location";
 		}
 		return label && !/^https?:\/\//i.test(label) ? label : hostname.replace(/^www\./, "");
 	} catch {
