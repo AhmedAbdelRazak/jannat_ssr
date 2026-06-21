@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Globe2, Headset, Send, X } from "lucide-react";
+import { Globe2, Headset, HeartHandshake, Send, Smile, Star, X } from "lucide-react";
 import { apiUrl, closePublicSupportCase, socketBaseUrl } from "../lib/api";
 import { trackConversion } from "../lib/analyticsEvents";
 import {
@@ -87,6 +87,11 @@ const CHAT_COPY = {
 		startChat: "Start chat",
 		typeMessage: "Type your message",
 		endChat: "End chat",
+		rateConversation: "How was this conversation?",
+		submitRating: "Submit rating",
+		skipRating: "Skip",
+		ratingThanks: "Thank you for your feedback. This chat has been closed.",
+		emojiPicker: "Add emoji",
 		chatClosed: "This chat has been closed.",
 		requiredError: "Please add your name, contact, hotel, and message.",
 		hotelError: "Please choose a listed Jannat hotel.",
@@ -361,6 +366,51 @@ const messageKey = (message = {}) =>
 	message?.clientTag ||
 	`${message?.date || ""}:${message?.messageBy?.customerEmail || ""}:${message?.message || ""}`;
 
+const COMMON_CHAT_EMOJIS = [
+	"\uD83D\uDE0A",
+	"\uD83D\uDE4F",
+	"\uD83C\uDF38",
+	"\u2705",
+	"\uD83D\uDC4D",
+	"\u2764\uFE0F",
+	"\uD83C\uDF19",
+	"\uD83D\uDCAB",
+];
+
+const isMobileComposerViewport = () => {
+	if (typeof window === "undefined") return false;
+	return (
+		window.innerWidth <= 768 ||
+		window.matchMedia?.("(pointer: coarse)")?.matches === true
+	);
+};
+
+const readableLinkLabel = (url = "", explicitLabel = "") => {
+	const safeUrl = String(url || "");
+	const label = String(explicitLabel || "").trim();
+	try {
+		const parsed = new URL(safeUrl);
+		const path = parsed.pathname.toLowerCase();
+		if (path.includes("/single-reservation/") || path.includes("/single-reservations/")) {
+			return "Reservation Confirmation";
+		}
+		if (path.includes("/client-payment/")) return "Payment Link";
+		if (path.includes("/single-hotel/")) return "Hotel Details";
+		if (path.includes("/invoice")) return "Invoice";
+		return label && !/^https?:\/\//i.test(label) ? label : parsed.hostname.replace(/^www\./, "");
+	} catch {
+		return label || "Open Link";
+	}
+};
+
+const renderFormattedText = (text = "", keyPrefix = "text") =>
+	String(text || "")
+		.split(/(\*\*[^*]+\*\*)/g)
+		.map((part, index) => {
+			const bold = part.match(/^\*\*([^*]+)\*\*$/);
+			return bold ? <strong key={`${keyPrefix}-bold-${index}`}>{bold[1]}</strong> : part;
+		});
+
 const renderMessageWithLinks = (text = "") => {
 	const safeText = typeof text === "string" ? text : "";
 	if (!safeText) return null;
@@ -370,17 +420,22 @@ const renderMessageWithLinks = (text = "") => {
 		if (markdown) {
 			return (
 				<a key={index} href={markdown[2]} target="_blank" rel="noopener noreferrer">
-					{markdown[1]}
+					{readableLinkLabel(markdown[2], markdown[1])}
 				</a>
 			);
 		}
-		return /^https?:\/\//.test(part) ? (
-			<a key={index} href={part} target="_blank" rel="noopener noreferrer">
-				{part}
-			</a>
-		) : (
-			part
-		);
+		if (/^https?:\/\//.test(part)) {
+			const match = part.match(/^(https?:\/\/[^\s<>()]+?)([.,!?;:]*)$/);
+			const href = match?.[1] || part;
+			const suffix = match?.[2] || "";
+			return [
+				<a key={`link-${index}`} href={href} target="_blank" rel="noopener noreferrer">
+					{readableLinkLabel(href)}
+				</a>,
+				suffix ? <span key={`link-suffix-${index}`}>{suffix}</span> : null,
+			];
+		}
+		return renderFormattedText(part, `part-${index}`);
 	});
 };
 
@@ -389,6 +444,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const siteDefaultChatLanguage = isArabic ? "Arabic" : "English";
 	const [open, setOpen] = useState(false);
 	const [caseId, setCaseId] = useState("");
+	const [caseMeta, setCaseMeta] = useState(null);
 	const [messages, setMessages] = useState([]);
 	const [chatLanguage, setChatLanguage] = useState(siteDefaultChatLanguage);
 	const [form, setForm] = useState({
@@ -404,10 +460,19 @@ export default function SupportWidget({ hotels = [] }) {
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [typingStatus, setTypingStatus] = useState("");
+	const [emojiOpen, setEmojiOpen] = useState(false);
+	const [isGuestTypingLocal, setIsGuestTypingLocal] = useState(false);
+	const [ratingVisible, setRatingVisible] = useState(false);
+	const [rating, setRating] = useState(5);
+	const [conversationEnded, setConversationEnded] = useState(false);
+	const [mobileComposer, setMobileComposer] = useState(false);
 	const socketRef = useRef(null);
-	const typingTimerRef = useRef(null);
+	const typingStatusTimerRef = useRef(null);
+	const guestTypingTimerRef = useRef(null);
+	const guestTypingLocalRef = useRef(false);
 	const messagesContainerRef = useRef(null);
 	const messagesEndRef = useRef(null);
+	const replyTextareaRef = useRef(null);
 	const replyInFlightRef = useRef(false);
 	const generatedMessageRef = useRef("");
 	const messageManuallyEditedRef = useRef(false);
@@ -445,6 +510,31 @@ export default function SupportWidget({ hotels = [] }) {
 		() => topics.find((topic) => topic.value === form.topic) || topics[0],
 		[form.topic, topics]
 	);
+	const feedbackCopy = CHAT_COPY.English;
+	const reservationFlowCompleted = useMemo(
+		() =>
+			Boolean(
+				caseMeta?.aiReservation?.status === "created" ||
+					caseMeta?.aiReservation?.confirmationNumber ||
+					messages.some((message) =>
+						/(single-reservation|reservation confirmation|confirmation number|client-payment)/i.test(
+							String(message?.message || "")
+						)
+					)
+			),
+		[caseMeta, messages]
+	);
+
+	useEffect(() => {
+		const refresh = () => setMobileComposer(isMobileComposerViewport());
+		refresh();
+		window.addEventListener("resize", refresh);
+		window.addEventListener("orientationchange", refresh);
+		return () => {
+			window.removeEventListener("resize", refresh);
+			window.removeEventListener("orientationchange", refresh);
+		};
+	}, []);
 
 	useEffect(() => {
 		if (caseId) return;
@@ -567,11 +657,18 @@ export default function SupportWidget({ hotels = [] }) {
 	}, [caseId, writeChatQuery]);
 
 	const resetCaseState = useCallback(() => {
-		window.clearTimeout(typingTimerRef.current);
+		window.clearTimeout(typingStatusTimerRef.current);
+		window.clearTimeout(guestTypingTimerRef.current);
 		setCaseId("");
+		setCaseMeta(null);
 		setMessages([]);
 		setReply("");
 		setTypingStatus("");
+		setEmojiOpen(false);
+		setRatingVisible(false);
+		setConversationEnded(false);
+		setIsGuestTypingLocal(false);
+		guestTypingLocalRef.current = false;
 	}, []);
 
 	useEffect(() => {
@@ -638,6 +735,7 @@ export default function SupportWidget({ hotels = [] }) {
 					return;
 				}
 				if (!cancelled && Array.isArray(data?.conversation)) {
+					setCaseMeta(data);
 					setMessages(data.conversation);
 				}
 			} catch (err) {
@@ -669,9 +767,10 @@ export default function SupportWidget({ hotels = [] }) {
 		const onTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
 			if (data.name && data.name === form.name) return;
+			if (guestTypingLocalRef.current) return;
 			setTypingStatus(`${data.name || chatBrandName} ${chatCopy.isTyping}`);
-			window.clearTimeout(typingTimerRef.current);
-			typingTimerRef.current = window.setTimeout(() => setTypingStatus(""), 4500);
+			window.clearTimeout(typingStatusTimerRef.current);
+			typingStatusTimerRef.current = window.setTimeout(() => setTypingStatus(""), 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
@@ -703,7 +802,8 @@ export default function SupportWidget({ hotels = [] }) {
 
 		return () => {
 			mounted = false;
-			window.clearTimeout(typingTimerRef.current);
+			window.clearTimeout(typingStatusTimerRef.current);
+			window.clearTimeout(guestTypingTimerRef.current);
 			if (socket) {
 				socket.emit("leaveRoom", { caseId });
 				socket.off("receiveMessage", onReceiveMessage);
@@ -736,6 +836,18 @@ export default function SupportWidget({ hotels = [] }) {
 			window.clearTimeout(lateTimer);
 		};
 	}, [caseId, messages.length, open, scrollToBottom, typingStatus]);
+
+	const syncReplyTextareaHeight = useCallback(() => {
+		const node = replyTextareaRef.current;
+		if (!node) return;
+		node.style.height = "44px";
+		const nextHeight = Math.min(128, Math.max(44, node.scrollHeight));
+		node.style.height = `${nextHeight}px`;
+	}, []);
+
+	useEffect(() => {
+		syncReplyTextareaHeight();
+	}, [reply, caseId, syncReplyTextareaHeight]);
 
 	const startChat = async (event) => {
 		event.preventDefault();
@@ -792,6 +904,7 @@ export default function SupportWidget({ hotels = [] }) {
 			const data = await res.json();
 			if (!res.ok || data?.error) throw new Error(data?.error || chatCopy.startError);
 			setCaseId(data._id);
+			setCaseMeta(data);
 			setMessages(Array.isArray(data.conversation) ? data.conversation : []);
 			trackConversion(
 				"chatStart",
@@ -814,14 +927,42 @@ export default function SupportWidget({ hotels = [] }) {
 		const socket = socketRef.current;
 		if (!socket || !caseId) return;
 		if (value) {
+			guestTypingLocalRef.current = true;
+			setIsGuestTypingLocal(true);
 			socket.emit("typing", { name: form.name || "Guest", caseId });
-			window.clearTimeout(typingTimerRef.current);
-			typingTimerRef.current = window.setTimeout(() => {
+			window.clearTimeout(guestTypingTimerRef.current);
+			guestTypingTimerRef.current = window.setTimeout(() => {
 				socket.emit("stopTyping", { name: form.name || "Guest", caseId });
+				guestTypingLocalRef.current = false;
+				setIsGuestTypingLocal(false);
 			}, 1600);
 		} else {
 			socket.emit("stopTyping", { name: form.name || "Guest", caseId });
+			window.clearTimeout(guestTypingTimerRef.current);
+			guestTypingLocalRef.current = false;
+			setIsGuestTypingLocal(false);
 		}
+	};
+
+	const handleReplyChange = (event) => {
+		setReply(event.target.value);
+		emitTyping(event.target.value);
+	};
+
+	const insertEmoji = (emoji) => {
+		const node = replyTextareaRef.current;
+		const current = reply || "";
+		const start = typeof node?.selectionStart === "number" ? node.selectionStart : current.length;
+		const end = typeof node?.selectionEnd === "number" ? node.selectionEnd : current.length;
+		const next = `${current.slice(0, start)}${emoji}${current.slice(end)}`;
+		setReply(next);
+		emitTyping(next);
+		window.requestAnimationFrame(() => {
+			node?.focus();
+			const caret = start + emoji.length;
+			node?.setSelectionRange?.(caret, caret);
+			syncReplyTextareaHeight();
+		});
 	};
 
 	const sendReply = async (event, overrideText = "") => {
@@ -851,8 +992,10 @@ export default function SupportWidget({ hotels = [] }) {
 			});
 			const data = await res.json();
 			if (!res.ok || data?.error) throw new Error(data?.error || "Message failed.");
+			setCaseMeta(data);
 			setMessages(Array.isArray(data.conversation) ? data.conversation : []);
 			setReply("");
+			setEmojiOpen(false);
 			emitTyping("");
 		} catch (err) {
 			if (/closed/i.test(err.message || "")) {
@@ -867,6 +1010,19 @@ export default function SupportWidget({ hotels = [] }) {
 		}
 	};
 
+	const handleReplyKeyDown = (event) => {
+		if (
+			event.key !== "Enter" ||
+			event.shiftKey ||
+			event.nativeEvent?.isComposing ||
+			isMobileComposerViewport()
+		) {
+			return;
+		}
+		event.preventDefault();
+		sendReply(event);
+	};
+
 	const handleQuickReply = (quickReply) => {
 		const value = String(quickReply?.value || quickReply?.label || "").trim();
 		if (!value || busy) return;
@@ -874,21 +1030,37 @@ export default function SupportWidget({ hotels = [] }) {
 		sendReply(null, value);
 	};
 
-	const endChat = async () => {
+	const endChat = () => {
+		if (!caseId || busy) return;
+		setConversationEnded(true);
+		setRatingVisible(true);
+		setEmojiOpen(false);
+		setNotice("");
+	};
+
+	const closeChatWithRating = async (selectedRating = null) => {
 		if (!caseId || busy) return;
 		setBusy(true);
 		setError("");
 		try {
-			await closePublicSupportCase(caseId);
+			const payload = selectedRating ? { rating: selectedRating } : {};
+			await closePublicSupportCase(caseId, payload);
 			socketRef.current?.emit("leaveRoom", { caseId });
 			resetCaseState();
-			setNotice(chatCopy.chatClosed);
+			setNotice(
+				selectedRating
+					? chatCopy.ratingThanks || feedbackCopy.ratingThanks
+					: chatCopy.chatClosed
+			);
 		} catch (err) {
 			setError(err.message || chatCopy.closeError);
 		} finally {
 			setBusy(false);
 		}
 	};
+
+	const submitRating = () => closeChatWithRating(rating);
+	const skipRating = () => closeChatWithRating(null);
 
 	const handleHotelChange = (value) => {
 		const hotel = hotelOptions.find((row) => String(row._id) === String(value));
@@ -952,8 +1124,16 @@ export default function SupportWidget({ hotels = [] }) {
 						</div>
 						<div className="support-head-actions">
 							{caseId ? (
-								<button className="support-end-chat" type="button" onClick={endChat} disabled={busy}>
-									{chatCopy.endChat}
+								<button
+									className={`support-end-chat${reservationFlowCompleted ? " is-ready" : ""}${
+										conversationEnded ? " is-ending" : ""
+									}`}
+									type="button"
+									onClick={endChat}
+									disabled={busy || ratingVisible}
+								>
+									<HeartHandshake size={15} />
+									<span>{chatCopy.endChat}</span>
 								</button>
 							) : null}
 							<button className="support-close" type="button" onClick={closeChatPanel} aria-label="Close support">
@@ -965,6 +1145,32 @@ export default function SupportWidget({ hotels = [] }) {
 					{caseId ? (
 						<>
 							{renderChatLanguageSelect(true)}
+							{ratingVisible ? (
+								<div className="rating-panel" role="group" aria-label={chatCopy.rateConversation || feedbackCopy.rateConversation}>
+									<strong>{chatCopy.rateConversation || feedbackCopy.rateConversation}</strong>
+									<div className="rating-stars">
+										{[1, 2, 3, 4, 5].map((value) => (
+											<button
+												key={value}
+												type="button"
+												className={`rating-star${value <= rating ? " is-active" : ""}`}
+												onClick={() => setRating(value)}
+												aria-label={`${value} star${value === 1 ? "" : "s"}`}
+											>
+												<Star size={19} />
+											</button>
+										))}
+									</div>
+									<div className="rating-actions">
+										<button type="button" className="rating-submit" onClick={submitRating} disabled={busy}>
+											{chatCopy.submitRating || feedbackCopy.submitRating}
+										</button>
+										<button type="button" className="rating-skip" onClick={skipRating} disabled={busy}>
+											{chatCopy.skipRating || feedbackCopy.skipRating}
+										</button>
+									</div>
+								</div>
+							) : null}
 							<div className="messages" ref={messagesContainerRef} role="log" aria-live="polite">
 								{messages.map((message, index) => {
 									const sender = brandText(message?.messageBy?.customerName || "Support", isChatArabic);
@@ -1000,20 +1206,44 @@ export default function SupportWidget({ hotels = [] }) {
 										</div>
 									);
 								})}
-								{typingStatus ? <div className="typing-line">{typingStatus}</div> : null}
+								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
 							<form className="reply-form" onSubmit={sendReply}>
-								<input
+								<button
+									type="button"
+									className="emoji-toggle"
+									onClick={() => setEmojiOpen((current) => !current)}
+									aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}
+								>
+									<Smile size={18} />
+								</button>
+								{emojiOpen ? (
+									<div className="emoji-popover" role="listbox" aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}>
+										{COMMON_CHAT_EMOJIS.map((emoji) => (
+											<button
+												key={emoji}
+												type="button"
+												className="emoji-choice"
+												onClick={() => insertEmoji(emoji)}
+												aria-label={emoji}
+											>
+												{emoji}
+											</button>
+										))}
+									</div>
+								) : null}
+								<textarea
+									ref={replyTextareaRef}
 									value={reply}
 									dir={selectedChatLanguageMeta.rtl ? "rtl" : "ltr"}
-									onChange={(event) => {
-										setReply(event.target.value);
-										emitTyping(event.target.value);
-									}}
+									rows={1}
+									onChange={handleReplyChange}
+									onKeyDown={handleReplyKeyDown}
 									placeholder={chatCopy.typeMessage}
+									enterKeyHint={mobileComposer ? "enter" : "send"}
 								/>
-								<button type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
+								<button className="send-reply" type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
 									<Send size={18} />
 								</button>
 							</form>
@@ -1213,6 +1443,7 @@ export default function SupportWidget({ hotels = [] }) {
 				.support-head-copy {
 					display: grid;
 					gap: 3px;
+					min-width: 0;
 				}
 
 				.support-head strong,
@@ -1249,9 +1480,93 @@ export default function SupportWidget({ hotels = [] }) {
 
 				.support-end-chat {
 					min-height: 34px;
-					padding: 0 10px;
+					padding: 0 11px;
 					font-size: 12px;
 					font-weight: 950;
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					gap: 6px;
+					box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+					transition:
+						transform 160ms ease,
+						background 160ms ease,
+						color 160ms ease,
+						box-shadow 160ms ease;
+				}
+
+				.support-end-chat svg {
+					flex: 0 0 auto;
+					stroke-width: 2.35;
+				}
+
+				.support-end-chat:hover:not(:disabled),
+				.support-end-chat:focus-visible {
+					transform: translateY(-1px);
+					background: rgba(255, 255, 255, 0.18);
+				}
+
+				.support-end-chat.is-ready {
+					color: #071526;
+					background:
+						linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 248, 0.92)),
+						#ffffff;
+					border-color: rgba(255, 255, 255, 0.74);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.95),
+						0 0 0 1px rgba(255, 93, 114, 0.18),
+						0 10px 22px rgba(8, 9, 13, 0.16);
+					animation: jannatHeartGlow 1.7s ease-in-out infinite;
+				}
+
+				.support-end-chat.is-ready svg {
+					animation: jannatHeartBeat 1.7s ease-in-out infinite;
+					transform-origin: center;
+				}
+
+				.support-end-chat.is-ending,
+				.support-end-chat:disabled {
+					animation: none;
+					opacity: 0.78;
+					cursor: default;
+					transform: none;
+				}
+
+				.support-end-chat.is-ending svg,
+				.support-end-chat:disabled svg {
+					animation: none;
+				}
+
+				@keyframes jannatHeartGlow {
+					0%,
+					100% {
+						box-shadow:
+							inset 0 1px rgba(255, 255, 255, 0.95),
+							0 0 0 1px rgba(255, 93, 114, 0.18),
+							0 10px 22px rgba(8, 9, 13, 0.16);
+					}
+					45% {
+						box-shadow:
+							inset 0 1px rgba(255, 255, 255, 0.95),
+							0 0 0 3px rgba(255, 93, 114, 0.14),
+							0 12px 26px rgba(8, 9, 13, 0.18);
+					}
+				}
+
+				@keyframes jannatHeartBeat {
+					0%,
+					100% {
+						transform: scale(1);
+					}
+					18% {
+						transform: scale(1.04);
+					}
+					34% {
+						transform: scale(0.99);
+					}
+					50% {
+						transform: scale(1.025);
+					}
 				}
 
 				.support-close {
@@ -1539,10 +1854,12 @@ export default function SupportWidget({ hotels = [] }) {
 
 				.bubble {
 					max-width: 88%;
+					min-width: 0;
 					border-radius: 8px;
 					padding: 9px 10px;
 					background: #fff;
 					border: 1px solid var(--zad-border);
+					overflow-wrap: anywhere;
 				}
 
 				.bubble.guest {
@@ -1564,23 +1881,26 @@ export default function SupportWidget({ hotels = [] }) {
 					white-space: pre-wrap;
 					line-height: 1.45;
 					font-size: 14px;
+					overflow-wrap: anywhere;
+					word-break: break-word;
 				}
 
 				.bubble p a {
-					color: var(--zad-green);
+					color: #1d72e8;
 					font-weight: 950;
 					text-decoration: underline;
+					text-decoration-thickness: 2px;
 					text-underline-offset: 2px;
 					overflow-wrap: anywhere;
 				}
 
 				.bubble p a:hover,
 				.bubble p a:focus-visible {
-					color: #087e60;
+					color: #075dbf;
 				}
 
 				.bubble.guest p a {
-					color: #ffffff;
+					color: #8feaff;
 				}
 
 				.quick-replies {
@@ -1616,22 +1936,40 @@ export default function SupportWidget({ hotels = [] }) {
 				.reply-form {
 					flex: 0 0 auto;
 					display: grid;
-					grid-template-columns: 1fr 44px;
+					grid-template-columns: 44px minmax(0, 1fr) 44px;
+					align-items: end;
 					gap: 8px;
 					padding: 12px;
 					border-top: 1px solid var(--zad-border);
 					background: #fff;
+					position: relative;
 				}
 
-				.reply-form input {
+				.reply-form textarea {
 					border: 1px solid rgba(36, 84, 125, 0.18);
 					border-radius: 8px;
+					width: 100%;
 					min-height: 44px;
-					padding: 0 12px;
+					max-height: 128px;
+					padding: 11px 12px;
+					line-height: 20px;
 					outline: none;
+					resize: none;
+					overflow-y: auto;
+					white-space: pre-wrap;
+					overflow-wrap: anywhere;
+					word-break: break-word;
+					font: inherit;
+					scrollbar-width: thin;
 				}
 
-				.reply-form button {
+				.reply-form textarea:focus {
+					border-color: rgba(11, 143, 106, 0.52);
+					box-shadow: 0 0 0 3px rgba(11, 143, 106, 0.11);
+				}
+
+				.emoji-toggle,
+				.send-reply {
 					border: 0;
 					border-radius: 8px;
 					color: #fff;
@@ -1639,6 +1977,50 @@ export default function SupportWidget({ hotels = [] }) {
 					display: inline-flex;
 					align-items: center;
 					justify-content: center;
+					width: 44px;
+					height: 44px;
+					cursor: pointer;
+				}
+
+				.emoji-toggle {
+					color: var(--zad-blue);
+					background:
+						linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 248, 252, 0.96)),
+						#fff;
+					border: 1px solid rgba(36, 84, 125, 0.16);
+				}
+
+				.send-reply:disabled {
+					opacity: 0.48;
+					cursor: default;
+				}
+
+				.emoji-popover {
+					position: absolute;
+					left: 12px;
+					bottom: 64px;
+					z-index: 2;
+					display: grid;
+					grid-template-columns: repeat(4, 38px);
+					gap: 7px;
+					padding: 9px;
+					border-radius: 8px;
+					border: 1px solid rgba(36, 84, 125, 0.14);
+					background: #fff;
+					box-shadow: 0 14px 34px rgba(8, 9, 13, 0.16);
+				}
+
+				.emoji-choice {
+					width: 38px;
+					height: 38px;
+					border: 1px solid rgba(36, 84, 125, 0.12);
+					border-radius: 8px;
+					background: #f8fafc;
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					font-size: 19px;
+					cursor: pointer;
 				}
 
 				.error {
@@ -1659,6 +2041,81 @@ export default function SupportWidget({ hotels = [] }) {
 					font-size: 13px;
 					font-weight: 900;
 					line-height: 1.45;
+				}
+
+				.rating-panel {
+					flex: 0 0 auto;
+					display: grid;
+					gap: 10px;
+					padding: 12px 14px;
+					border-bottom: 1px solid rgba(36, 84, 125, 0.12);
+					background:
+						linear-gradient(180deg, rgba(255, 250, 252, 0.98), rgba(246, 250, 252, 0.96)),
+						#ffffff;
+				}
+
+				.rating-panel strong {
+					color: var(--zad-blue);
+					font-size: 13px;
+					line-height: 1.25;
+				}
+
+				.rating-stars,
+				.rating-actions {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					flex-wrap: wrap;
+				}
+
+				.rating-star {
+					width: 36px;
+					height: 36px;
+					border-radius: 8px;
+					border: 1px solid rgba(245, 166, 35, 0.28);
+					color: #b77900;
+					background: #fff;
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					cursor: pointer;
+				}
+
+				.rating-star svg {
+					fill: transparent;
+					stroke-width: 2.25;
+				}
+
+				.rating-star.is-active {
+					color: #f5a623;
+					background: #fff7df;
+					border-color: rgba(245, 166, 35, 0.48);
+				}
+
+				.rating-star.is-active svg {
+					fill: currentColor;
+				}
+
+				.rating-submit,
+				.rating-skip {
+					min-height: 36px;
+					border-radius: 8px;
+					padding: 0 13px;
+					font-size: 12px;
+					font-weight: 950;
+					cursor: pointer;
+				}
+
+				.rating-submit {
+					border: 0;
+					color: #fff;
+					background: var(--zad-green);
+				}
+
+				.rating-skip {
+					border: 1px solid rgba(36, 84, 125, 0.16);
+					color: var(--zad-blue);
+					background: #fff;
 				}
 
 				@media (max-width: 640px) {
@@ -1715,6 +2172,57 @@ export default function SupportWidget({ hotels = [] }) {
 					.start-form,
 					.messages {
 						padding: 14px;
+					}
+
+					.support-head {
+						padding: 12px 12px;
+						gap: 8px;
+					}
+
+					.support-head-actions {
+						gap: 6px;
+					}
+
+					.support-end-chat {
+						min-height: 34px;
+						padding: 0 9px;
+					}
+
+					.support-end-chat span {
+						max-width: 86px;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+					}
+
+					.bubble {
+						max-width: 92%;
+					}
+
+					.reply-form {
+						grid-template-columns: 40px minmax(0, 1fr) 44px;
+						gap: 6px;
+						padding: 10px;
+					}
+
+					.emoji-toggle {
+						width: 40px;
+						height: 44px;
+					}
+
+					.emoji-popover {
+						left: 10px;
+						right: 10px;
+						bottom: 60px;
+						grid-template-columns: repeat(4, minmax(0, 1fr));
+					}
+
+					.emoji-choice {
+						width: 100%;
+					}
+
+					.rating-panel {
+						padding: 11px 12px;
 					}
 
 					.support-language-row {
