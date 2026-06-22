@@ -449,9 +449,25 @@ const receptionChatMessageFor = (language, hotelName) => {
 	return templates[language] || templates.English;
 };
 
+const CHAT_RECEPTION_MESSAGE_PREFIXES = [
+	"Assalamu alaikum, I would like to chat with reception about",
+	"\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u062a\u062d\u062f\u062b \u0645\u0639 \u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u0628\u062e\u0635\u0648\u0635",
+	"Assalamu alaikum, me gustaria hablar con recepcion sobre",
+	"Assalamu alaikum, je souhaite parler avec la reception au sujet de",
+	"السلام علیکم، میں",
+	"\u0905\u0938\u094d\u0938\u0932\u093e\u092e\u0941 \u0905\u0932\u0948\u0915\u0941\u092e, \u092e\u0948\u0902",
+	"Assalamualaikum, saya ingin berbicara dengan resepsionis tentang",
+	"Assalamualaikum, saya ingin bercakap dengan resepsi tentang",
+];
+
 const isGeneratedDefaultChatMessage = (value = "") => {
 	const text = String(value || "").trim();
-	return Boolean(text && CHAT_DEFAULT_MESSAGE_PREFIXES.some((prefix) => text.startsWith(prefix)));
+	return Boolean(
+		text &&
+			[...CHAT_DEFAULT_MESSAGE_PREFIXES, ...CHAT_RECEPTION_MESSAGE_PREFIXES].some(
+				(prefix) => text.startsWith(prefix)
+			)
+	);
 };
 
 const quickRepliesForMessage = (message = {}) =>
@@ -848,6 +864,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const createSupportCaseFromMessage = useCallback(
 		async (initialMessage = "", options = {}) => {
 			const cleanMessage = String(initialMessage || "").trim();
+			const generatedPrefillMessage = isGeneratedDefaultChatMessage(cleanMessage);
 			if (!form.name.trim() || !form.contact.trim() || !selectedHotel || !cleanMessage) {
 				throw supportRequestError(chatCopy.requiredError, 400, "REQUIRED_FIELDS");
 			}
@@ -888,8 +905,12 @@ export default function SupportWidget({ hotels = [] }) {
 				sourceWebsite: "jannatbooking_ssr",
 				sourcePage: "jannatbooking_support_widget",
 				sourceUrl: typeof window !== "undefined" ? window.location.href : "",
-				initialClientMessage: cleanMessage,
-				initialClientTag: supportClientTag(),
+				...(generatedPrefillMessage
+					? {}
+					: {
+							initialClientMessage: cleanMessage,
+							initialClientTag: supportClientTag(),
+					  }),
 			};
 			const res = await fetch(apiUrl("/support-cases/new"), {
 				method: "POST",
@@ -1245,7 +1266,7 @@ export default function SupportWidget({ hotels = [] }) {
 		});
 	};
 
-	const sendReply = async (event, overrideText = "") => {
+	const sendReply = async (event, overrideText = "", options = {}) => {
 		event?.preventDefault?.();
 		const messageText = String(overrideText || reply || "").trim();
 		if (!caseId || !messageText || replyInFlightRef.current) return;
@@ -1262,6 +1283,7 @@ export default function SupportWidget({ hotels = [] }) {
 				message: messageText,
 				inquiryAbout: "support",
 				inquiryDetails: messageText,
+				clientAction: String(options.clientAction || "").trim(),
 				preferredLanguage: languageName,
 				preferredLanguageCode: languageCode,
 			};
@@ -1316,7 +1338,7 @@ export default function SupportWidget({ hotels = [] }) {
 		const value = String(quickReply?.value || quickReply?.label || "").trim();
 		if (!value || busy) return;
 		setReply("");
-		sendReply(null, value);
+		sendReply(null, value, { clientAction: quickReply?.action || "" });
 	};
 
 	const endChat = () => {
@@ -1329,18 +1351,19 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const closeChatWithRating = async (selectedRating = null) => {
 		if (!caseId || busy) return;
+		const closingCaseId = caseId;
 		setBusy(true);
 		setError("");
+		socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
+		resetCaseState();
+		setNotice(
+			selectedRating
+				? chatCopy.ratingThanks || feedbackCopy.ratingThanks
+				: chatCopy.chatClosed
+		);
 		try {
 			const payload = selectedRating ? { rating: selectedRating } : {};
-			await closePublicSupportCase(caseId, payload);
-			socketRef.current?.emit("leaveRoom", { caseId });
-			resetCaseState();
-			setNotice(
-				selectedRating
-					? chatCopy.ratingThanks || feedbackCopy.ratingThanks
-					: chatCopy.chatClosed
-			);
+			await closePublicSupportCase(closingCaseId, payload);
 		} catch (err) {
 			setError(err.message || chatCopy.closeError);
 		} finally {

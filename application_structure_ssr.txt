@@ -511,3 +511,22 @@ Production Cutover State
     chatHotelId, the widget fills and writes the matching hotel context.
   - Single-hotel CTA starter messages now ask to chat with reception about the
     selected hotel instead of using a generic support inquiry sentence.
+
+2026-06-21 Support Chat Private Prefill And Final Action Buttons
+- Files:
+  - components/SupportWidget.js
+- Public chat behavior:
+  - Generated starter/prefill text on single-hotel pages is now treated as
+    private inquiry context only. It is not sent as `initialClientMessage`, so
+    the backend no longer mistakes "I would like to chat with reception about
+    this hotel" for a real guest request and no longer opens by asking for a
+    phone number.
+  - Real guest-typed first messages still go to the backend as
+    `initialClientMessage`, preserving direct answers when the guest actually
+    writes a question before starting the chat.
+  - Quick-reply clicks now send the button `action` as `clientAction` alongside
+    the visible text. This lets the backend distinguish the final
+    `place_reservation` button from ordinary typed confirmation text.
+  - Closing/skipping the rating now updates the widget immediately and sends
+    the backend close request in the background, so the guest is not left
+    waiting on a slow close call.
