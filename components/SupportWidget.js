@@ -1095,8 +1095,14 @@ export default function SupportWidget({ hotels = [] }) {
 				const res = await fetch(apiUrl(`/support-cases/client/${caseId}`));
 				const data = await res.json();
 				if (!cancelled && data?.caseStatus === "closed") {
-					resetCaseState();
-					setNotice(chatCopy.chatClosed);
+					setCaseMeta(data);
+					if (Array.isArray(data?.conversation)) {
+						setMessages((current) => mergeConversationMessages(current, data.conversation));
+					}
+					setConversationEnded(true);
+					setRatingVisible(true);
+					setEmojiOpen(false);
+					setNotice("");
 					return;
 				}
 				if (!cancelled && Array.isArray(data?.conversation)) {
@@ -1140,8 +1146,17 @@ export default function SupportWidget({ hotels = [] }) {
 		const onCloseCase = (payload = {}) => {
 			const closedCaseId = String(payload?.case?._id || payload?.caseId || "");
 			if (closedCaseId && closedCaseId !== String(caseId)) return;
-			resetCaseState();
-			setNotice(chatCopy.chatClosed);
+			if (payload?.case) {
+				setCaseMeta(payload.case);
+				if (Array.isArray(payload.case.conversation)) {
+					setMessages((current) => mergeConversationMessages(current, payload.case.conversation));
+				}
+			}
+			setConversationEnded(true);
+			setRatingVisible(true);
+			setEmojiOpen(false);
+			setTypingStatus("");
+			setNotice("");
 		};
 
 		const connectSocket = async () => {
@@ -1520,46 +1535,48 @@ export default function SupportWidget({ hotels = [] }) {
 								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
-							<form className="reply-form" onSubmit={sendReply}>
-								<button
-									type="button"
-									className="emoji-toggle"
-									onClick={() => setEmojiOpen((current) => !current)}
-									aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}
-								>
-									<Smile size={18} />
-								</button>
-								{emojiOpen ? (
-									<div className="emoji-popover" role="listbox" aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}>
-										{COMMON_CHAT_EMOJIS.map((emoji) => (
-											<button
-												key={emoji}
-												type="button"
-												className="emoji-choice"
-												onClick={() => insertEmoji(emoji)}
-												aria-label={emoji}
-											>
-												{emoji}
-											</button>
-										))}
-									</div>
-								) : null}
-								<textarea
-									ref={replyTextareaRef}
-									value={reply}
-									dir="auto"
-									rows={1}
-									onChange={handleReplyChange}
-									onKeyDown={handleReplyKeyDown}
-									placeholder={chatCopy.typeMessage}
-									enterKeyHint={mobileComposer ? "enter" : "send"}
-									inputMode="text"
-									spellCheck
-								/>
-								<button className="send-reply" type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
-									<Send size={18} />
-								</button>
-							</form>
+							{ratingVisible || conversationEnded ? null : (
+								<form className="reply-form" onSubmit={sendReply}>
+									<button
+										type="button"
+										className="emoji-toggle"
+										onClick={() => setEmojiOpen((current) => !current)}
+										aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}
+									>
+										<Smile size={18} />
+									</button>
+									{emojiOpen ? (
+										<div className="emoji-popover" role="listbox" aria-label={chatCopy.emojiPicker || feedbackCopy.emojiPicker}>
+											{COMMON_CHAT_EMOJIS.map((emoji) => (
+												<button
+													key={emoji}
+													type="button"
+													className="emoji-choice"
+													onClick={() => insertEmoji(emoji)}
+													aria-label={emoji}
+												>
+													{emoji}
+												</button>
+											))}
+										</div>
+									) : null}
+									<textarea
+										ref={replyTextareaRef}
+										value={reply}
+										dir="auto"
+										rows={1}
+										onChange={handleReplyChange}
+										onKeyDown={handleReplyKeyDown}
+										placeholder={chatCopy.typeMessage}
+										enterKeyHint={mobileComposer ? "enter" : "send"}
+										inputMode="text"
+										spellCheck
+									/>
+									<button className="send-reply" type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
+										<Send size={18} />
+									</button>
+								</form>
+							)}
 						</>
 					) : (
 						<form className="start-form support-form" onSubmit={startChat}>
