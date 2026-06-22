@@ -1378,17 +1378,19 @@ export default function SupportWidget({ hotels = [] }) {
 		const closingCaseId = caseId;
 		setBusy(true);
 		setError("");
-		socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
-		resetCaseState();
-		setNotice(
-			selectedRating
-				? chatCopy.ratingThanks || feedbackCopy.ratingThanks
-				: chatCopy.chatClosed
-		);
 		try {
 			const payload = selectedRating ? { rating: selectedRating } : {};
 			await closePublicSupportCase(closingCaseId, payload);
+			socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
+			resetCaseState();
+			setNotice(
+				selectedRating
+					? chatCopy.ratingThanks || feedbackCopy.ratingThanks
+					: chatCopy.chatClosed
+			);
 		} catch (err) {
+			setConversationEnded(true);
+			setRatingVisible(true);
 			setError(err.message || chatCopy.closeError);
 		} finally {
 			setBusy(false);
