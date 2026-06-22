@@ -656,6 +656,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const typingStatusTimerRef = useRef(null);
 	const guestTypingTimerRef = useRef(null);
 	const guestTypingLocalRef = useRef(false);
+	const lastGuestSendAtRef = useRef(0);
 	const messagesContainerRef = useRef(null);
 	const messagesEndRef = useRef(null);
 	const replyTextareaRef = useRef(null);
@@ -1135,6 +1136,7 @@ export default function SupportWidget({ hotels = [] }) {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
 			if (data.name && data.name === form.name) return;
 			if (guestTypingLocalRef.current) return;
+			if (Date.now() - Number(lastGuestSendAtRef.current || 0) < 900) return;
 			setTypingStatus(`${data.name || chatBrandName} ${chatCopy.isTyping}`);
 			window.clearTimeout(typingStatusTimerRef.current);
 			typingStatusTimerRef.current = window.setTimeout(() => setTypingStatus(""), 4500);
@@ -1289,6 +1291,7 @@ export default function SupportWidget({ hotels = [] }) {
 		setBusy(true);
 		setError("");
 		setNotice("");
+		const clientTag = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 		try {
 			const conversation = {
 				messageBy: {
@@ -1296,12 +1299,19 @@ export default function SupportWidget({ hotels = [] }) {
 					customerEmail: form.contact || "guest@jannatbooking.com",
 				},
 				message: messageText,
+				date: new Date().toISOString(),
+				clientTag,
 				inquiryAbout: "support",
 				inquiryDetails: messageText,
 				clientAction: String(options.clientAction || "").trim(),
 				preferredLanguage: languageName,
 				preferredLanguageCode: languageCode,
 			};
+			lastGuestSendAtRef.current = Date.now();
+			setMessages((current) => mergeConversationMessages(current, [conversation]));
+			setReply("");
+			setEmojiOpen(false);
+			emitTyping("");
 			const res = await fetch(apiUrl(`/support-cases/client/${caseId}`), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -1313,9 +1323,6 @@ export default function SupportWidget({ hotels = [] }) {
 			}
 			setCaseMeta(data);
 			setMessages((current) => mergeConversationMessages(current, data.conversation || []));
-			setReply("");
-			setEmojiOpen(false);
-			emitTyping("");
 		} catch (err) {
 			if (isClosedSupportCaseError(err)) {
 				emitTyping("");
@@ -1329,6 +1336,8 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 				return;
 			}
+			setMessages((current) => current.filter((message) => messageKey(message) !== clientTag));
+			setReply(messageText);
 			setError(err.message || chatCopy.messageError);
 		} finally {
 			replyInFlightRef.current = false;
