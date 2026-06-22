@@ -530,3 +530,25 @@ Production Cutover State
   - Closing/skipping the rating now updates the widget immediately and sends
     the backend close request in the background, so the guest is not left
     waiting on a slow close call.
+
+2026-06-22 Support Chat Persistence And Tunnel Recovery Note
+- Files:
+  - components/SupportWidget.js
+- Public chat behavior:
+  - The support widget persists recent open state, case id, form fields, and
+    selected chat language in guarded browser localStorage with a short TTL.
+  - If the guest moves to another SSR route while the chat is open, the widget
+    restores the same case and keeps `chat=open` / `chatLanguage` URL state in
+    sync with the new route.
+  - Manual close with no case clears the stored state. Closed/rated cases clear
+    stored state through the existing reset path. Conversation transcripts are
+    still loaded from the backend by case id; they are not stored in
+    localStorage.
+- Production tunnel note:
+  - On 2026-06-22 around 10:06 PDT, xhotelpro.com briefly showed Cloudflare
+    502/1033 after the home server rebooted. PM2 apps were local-healthy, but
+    cloudflared initially failed DNS SRV lookup through 127.0.0.53, then
+    systemd restarted it and four Cloudflare edge connections registered.
+  - If this recurs, check `systemctl status cloudflared`, `journalctl -u
+    cloudflared -n 80 --no-pager`, local PM2 ports, and public curls before
+    assuming an app regression.
