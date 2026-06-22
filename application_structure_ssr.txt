@@ -481,3 +481,19 @@ Production Cutover State
     use "Assalamualaikum"; Hindi uses native-script Islamic greeting.
   - This aligns the first visible frontend chat text with the backend AI
     opening-greeting contract.
+
+2026-06-21 Support Chat Closed-Case Send Recovery
+- Files:
+  - components/SupportWidget.js
+- Public chat behavior:
+  - Starting a chat now sends the guest's first form message as
+    initialClientMessage, so the conversation timeline includes the actual guest
+    ask and the AI can answer it directly.
+  - If a guest sends a reply after the previous support case was already closed,
+    the widget starts a fresh support case and sends that same reply instead of
+    showing a generic "Message failed" state.
+  - The restart notice is localized for English, Arabic, Spanish, French, Urdu,
+    Hindi, Indonesian, and Malay.
+  - This keeps the production chat smooth when the backend five-minute idle close
+    rule has already closed an older case while the guest still has the widget
+    open.

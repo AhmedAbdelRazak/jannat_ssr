@@ -93,6 +93,7 @@ const CHAT_COPY = {
 		ratingThanks: "Thank you for your feedback. This chat has been closed.",
 		emojiPicker: "Add emoji",
 		chatClosed: "This chat has been closed.",
+		chatRestarted: "The previous chat was closed, so I started a fresh chat and sent your message.",
 		requiredError: "Please add your name, contact, hotel, and message.",
 		hotelError: "Please choose a listed Jannat hotel.",
 		startError: "Unable to start chat.",
@@ -128,6 +129,7 @@ const CHAT_COPY = {
 		ratingThanks: "شكرا لتقييمك. تم إغلاق المحادثة.",
 		emojiPicker: "إضافة رمز تعبيري",
 		chatClosed: "تم إغلاق هذه المحادثة.",
+		chatRestarted: "تم إغلاق المحادثة السابقة، فبدأت محادثة جديدة وأرسلت رسالتك.",
 		requiredError: "يرجى إضافة الاسم وبيانات التواصل والفندق والرسالة.",
 		hotelError: "يرجى اختيار فندق من القائمة.",
 		startError: "تعذر بدء المحادثة.",
@@ -163,6 +165,7 @@ const CHAT_COPY = {
 		ratingThanks: "Gracias por tu comentario. Este chat se ha cerrado.",
 		emojiPicker: "Agregar emoji",
 		chatClosed: "Este chat se ha cerrado.",
+		chatRestarted: "El chat anterior se cerro, asi que inicie uno nuevo y envie tu mensaje.",
 		requiredError: "Agrega tu nombre, contacto, hotel y mensaje.",
 		hotelError: "Elige un hotel de Jannat de la lista.",
 		startError: "No se pudo iniciar el chat.",
@@ -198,6 +201,7 @@ const CHAT_COPY = {
 		ratingThanks: "Merci pour votre avis. Ce chat est ferme.",
 		emojiPicker: "Ajouter un emoji",
 		chatClosed: "Ce chat est ferme.",
+		chatRestarted: "La conversation precedente etait fermee; j'en ai ouvert une nouvelle et envoye votre message.",
 		requiredError: "Ajoutez votre nom, contact, hotel et message.",
 		hotelError: "Choisissez un hotel Jannat dans la liste.",
 		startError: "Impossible de demarrer le chat.",
@@ -233,6 +237,7 @@ const CHAT_COPY = {
 		ratingThanks: "\u0622\u067e \u06a9\u06cc \u0631\u0627\u0626\u06d2 \u06a9\u0627 \u0634\u06a9\u0631\u06cc\u06c1\u06d4 \u06cc\u06c1 \u0686\u06cc\u0679 \u0628\u0646\u062f \u06a9\u0631 \u062f\u06cc \u06af\u0626\u06cc \u06c1\u06d2\u06d4",
 		emojiPicker: "\u0627\u06cc\u0645\u0648\u062c\u06cc \u0634\u0627\u0645\u0644 \u06a9\u0631\u06cc\u06ba",
 		chatClosed: "یہ چیٹ بند ہو چکی ہے۔",
+		chatRestarted: "پچھلی چیٹ بند ہو چکی تھی، اس لیے نئی چیٹ شروع کر کے آپ کا پیغام بھیج دیا گیا۔",
 		requiredError: "براہ کرم نام، رابطہ، ہوٹل اور پیغام شامل کریں۔",
 		hotelError: "براہ کرم فہرست سے Jannat ہوٹل منتخب کریں۔",
 		startError: "چیٹ شروع نہیں ہو سکی۔",
@@ -268,6 +273,7 @@ const CHAT_COPY = {
 		ratingThanks: "\u0906\u092a\u0915\u0940 \u092a\u094d\u0930\u0924\u093f\u0915\u094d\u0930\u093f\u092f\u093e \u0915\u0947 \u0932\u093f\u090f \u0927\u0928\u094d\u092f\u0935\u093e\u0926\u0964 \u092f\u0939 \u091a\u0948\u091f \u092c\u0902\u0926 \u0915\u0930 \u0926\u0940 \u0917\u0908 \u0939\u0948\u0964",
 		emojiPicker: "\u0907\u092e\u094b\u091c\u0940 \u091c\u094b\u0921\u093c\u0947\u0902",
 		chatClosed: "यह चैट बंद हो गई है।",
+		chatRestarted: "पिछली चैट बंद हो गई थी, इसलिए नई चैट शुरू करके आपका संदेश भेज दिया गया।",
 		requiredError: "कृपया नाम, संपर्क, होटल और संदेश जोड़ें।",
 		hotelError: "कृपया सूची से Jannat होटल चुनें।",
 		startError: "चैट शुरू नहीं हो सकी।",
@@ -303,6 +309,7 @@ const CHAT_COPY = {
 		ratingThanks: "Terima kasih atas masukan Anda. Chat ini telah ditutup.",
 		emojiPicker: "Tambah emoji",
 		chatClosed: "Chat ini telah ditutup.",
+		chatRestarted: "Chat sebelumnya sudah ditutup, jadi saya memulai chat baru dan mengirim pesan Anda.",
 		requiredError: "Mohon isi nama, kontak, hotel, dan pesan.",
 		hotelError: "Mohon pilih hotel Jannat dari daftar.",
 		startError: "Tidak dapat memulai chat.",
@@ -338,6 +345,7 @@ const CHAT_COPY = {
 		ratingThanks: "Terima kasih atas maklum balas anda. Chat ini telah ditutup.",
 		emojiPicker: "Tambah emoji",
 		chatClosed: "Chat ini telah ditutup.",
+		chatRestarted: "Chat sebelumnya telah ditutup, jadi saya mulakan chat baharu dan menghantar mesej anda.",
 		requiredError: "Sila isi nama, kontak, hotel, dan mesej.",
 		hotelError: "Sila pilih hotel Jannat daripada senarai.",
 		startError: "Tidak dapat memulakan chat.",
@@ -356,6 +364,29 @@ const CHAT_COPY = {
 };
 
 const getChatCopy = (label = "English") => CHAT_COPY[label] || CHAT_COPY.English;
+
+const readResponseJson = async (response) => {
+	try {
+		return await response.json();
+	} catch {
+		return {};
+	}
+};
+
+const supportRequestError = (message, status, code) => {
+	const error = new Error(message);
+	error.status = status;
+	error.code = code;
+	return error;
+};
+
+const isClosedSupportCaseError = (error = {}) =>
+	error?.code === "SUPPORT_CASE_CLOSED" ||
+	error?.status === 409 ||
+	/closed/i.test(String(error?.message || ""));
+
+const supportClientTag = () =>
+	`client:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 
 const DEFAULT_CHAT_HOTEL_NAME = "Zad Al Sad";
 
@@ -687,6 +718,93 @@ export default function SupportWidget({ hotels = [] }) {
 		[writeChatQuery]
 	);
 
+	const createSupportCaseFromMessage = useCallback(
+		async (initialMessage = "", options = {}) => {
+			const cleanMessage = String(initialMessage || "").trim();
+			if (!form.name.trim() || !form.contact.trim() || !selectedHotel || !cleanMessage) {
+				throw supportRequestError(chatCopy.requiredError, 400, "REQUIRED_FIELDS");
+			}
+			const ownerId = String(selectedHotel?.belongsTo?._id || selectedHotel?.belongsTo || "").trim();
+			if (!ownerId) {
+				throw supportRequestError(chatCopy.hotelError, 400, "INVALID_HOTEL");
+			}
+			if (options.commitQuery !== false) {
+				commitChatQueryFields({
+					name: form.name,
+					contact: form.contact,
+					hotelId: selectedHotel._id,
+					hotelName: selectedHotel.hotelName || form.hotelName,
+					inquiry: selectedTopic?.value || "reserve_room",
+					inquiryDetails: cleanMessage,
+					language: languageName,
+				});
+			}
+			const payload = {
+				customerName: form.name,
+				displayName1: form.name,
+				displayName2: selectedHotel.hotelName || form.hotelName,
+				role: 0,
+				customerEmail: form.contact,
+				hotelId: selectedHotel._id,
+				inquiryAbout: selectedTopic?.value || "reserve_room",
+				inquiryDetails: `[Preferred Language: ${languageName} (${languageCode})] [Topic: ${
+					selectedTopic?.label || "Room booking or availability"
+				}] ${cleanMessage}`,
+				supportScope:
+					String(selectedHotel._id) === JANNAT_SUPPORT_HOTEL_ID
+						? "jannat_booking"
+						: "hotel",
+				supporterId: ownerId,
+				ownerId,
+				preferredLanguage: languageName,
+				preferredLanguageCode: languageCode,
+				sourceWebsite: "jannatbooking_ssr",
+				sourcePage: "jannatbooking_support_widget",
+				sourceUrl: typeof window !== "undefined" ? window.location.href : "",
+				initialClientMessage: cleanMessage,
+				initialClientTag: supportClientTag(),
+			};
+			const res = await fetch(apiUrl("/support-cases/new"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Accept: "application/json" },
+				body: JSON.stringify(payload),
+			});
+			const data = await readResponseJson(res);
+			if (!res.ok || data?.error) {
+				throw supportRequestError(data?.error || chatCopy.startError, res.status, data?.code);
+			}
+			setCaseId(data._id);
+			setCaseMeta(data);
+			setMessages(mergeConversationMessages([], data.conversation || []));
+			if (options.track !== false) {
+				trackConversion(
+					"chatStart",
+					{
+						content_name: selectedHotel.hotelName || form.hotelName,
+						content_type: "support_case",
+						hotel_id: selectedHotel._id,
+						inquiry: selectedTopic?.value || "reserve_room",
+					},
+					["User Started Chat", "Start Chat"]
+				);
+			}
+			return data;
+		},
+		[
+			chatCopy.hotelError,
+			chatCopy.requiredError,
+			chatCopy.startError,
+			commitChatQueryFields,
+			form.contact,
+			form.hotelName,
+			form.name,
+			languageCode,
+			languageName,
+			selectedHotel,
+			selectedTopic,
+		]
+	);
+
 	const handleChatLanguageChange = useCallback(
 		(value) => {
 			const nextLanguage = normalizeChatLanguage(value) || siteDefaultChatLanguage;
@@ -945,72 +1063,12 @@ export default function SupportWidget({ hotels = [] }) {
 	}, [reply, caseId, syncReplyTextareaHeight]);
 
 	const startChat = async (event) => {
-		event.preventDefault();
+		event?.preventDefault?.();
 		setError("");
 		setNotice("");
-		if (!form.name.trim() || !form.contact.trim() || !selectedHotel || !form.message.trim()) {
-			setError(chatCopy.requiredError);
-			return;
-		}
-		const ownerId = String(selectedHotel?.belongsTo?._id || selectedHotel?.belongsTo || "").trim();
-		if (!ownerId) {
-			setError(chatCopy.hotelError);
-			return;
-		}
-		commitChatQueryFields({
-			name: form.name,
-			contact: form.contact,
-			hotelId: selectedHotel._id,
-			hotelName: selectedHotel.hotelName || form.hotelName,
-			inquiry: selectedTopic?.value || "reserve_room",
-			inquiryDetails: form.message,
-			language: languageName,
-		});
 		setBusy(true);
 		try {
-			const payload = {
-				customerName: form.name,
-				displayName1: form.name,
-				displayName2: selectedHotel.hotelName,
-				role: 0,
-				customerEmail: form.contact,
-				hotelId: selectedHotel._id,
-				inquiryAbout: selectedTopic?.value || "reserve_room",
-				inquiryDetails: `[Preferred Language: ${languageName} (${languageCode})] [Topic: ${
-					selectedTopic?.label || "Room booking or availability"
-				}] ${form.message}`,
-				supportScope:
-					String(selectedHotel._id) === JANNAT_SUPPORT_HOTEL_ID
-						? "jannat_booking"
-						: "hotel",
-				supporterId: ownerId,
-				ownerId,
-				preferredLanguage: languageName,
-				preferredLanguageCode: languageCode,
-				sourceWebsite: "jannatbooking_ssr",
-				sourcePage: "jannatbooking_support_widget",
-				sourceUrl: typeof window !== "undefined" ? window.location.href : "",
-			};
-			const res = await fetch(apiUrl("/support-cases/new"), {
-				method: "POST",
-				headers: { "Content-Type": "application/json", Accept: "application/json" },
-				body: JSON.stringify(payload),
-			});
-			const data = await res.json();
-			if (!res.ok || data?.error) throw new Error(data?.error || chatCopy.startError);
-			setCaseId(data._id);
-			setCaseMeta(data);
-			setMessages(mergeConversationMessages([], data.conversation || []));
-			trackConversion(
-				"chatStart",
-				{
-					content_name: selectedHotel.hotelName || form.hotelName,
-					content_type: "support_case",
-					hotel_id: selectedHotel._id,
-					inquiry: selectedTopic?.value || "reserve_room",
-				},
-				["User Started Chat", "Start Chat"]
-			);
+			await createSupportCaseFromMessage(form.message);
 		} catch (err) {
 			setError(err.message || chatCopy.startError);
 		} finally {
@@ -1085,17 +1143,26 @@ export default function SupportWidget({ hotels = [] }) {
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
 				body: JSON.stringify({ conversation }),
 			});
-			const data = await res.json();
-			if (!res.ok || data?.error) throw new Error(data?.error || "Message failed.");
+			const data = await readResponseJson(res);
+			if (!res.ok || data?.error) {
+				throw supportRequestError(data?.error || chatCopy.messageError, res.status, data?.code);
+			}
 			setCaseMeta(data);
 			setMessages((current) => mergeConversationMessages(current, data.conversation || []));
 			setReply("");
 			setEmojiOpen(false);
 			emitTyping("");
 		} catch (err) {
-			if (/closed/i.test(err.message || "")) {
+			if (isClosedSupportCaseError(err)) {
+				emitTyping("");
 				resetCaseState();
-				setNotice(chatCopy.chatClosed);
+				try {
+					await createSupportCaseFromMessage(messageText, { track: false });
+					setNotice(chatCopy.chatRestarted || chatCopy.chatClosed);
+				} catch (restartError) {
+					setNotice(chatCopy.chatClosed);
+					setError(restartError.message || chatCopy.startError);
+				}
 				return;
 			}
 			setError(err.message || chatCopy.messageError);
