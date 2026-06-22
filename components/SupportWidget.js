@@ -360,14 +360,14 @@ const getChatCopy = (label = "English") => CHAT_COPY[label] || CHAT_COPY.English
 const DEFAULT_CHAT_HOTEL_NAME = "Zad Al Sad";
 
 const CHAT_DEFAULT_MESSAGE_TEMPLATES = {
-	English: (hotel) => `Hello Jannat Booking, I would like to ask about ${hotel}.`,
-	Arabic: (hotel) => `مرحبا جنات بوكينج، أرغب بالاستفسار عن ${hotel}.`,
-	Spanish: (hotel) => `Hola Jannat Booking, me gustaria consultar sobre ${hotel}.`,
-	French: (hotel) => `Bonjour Jannat Booking, je souhaite me renseigner sur ${hotel}.`,
+	English: (hotel) => `Assalamu alaikum Jannat Booking, I would like to ask about ${hotel}.`,
+	Arabic: (hotel) => `\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645 \u062c\u0646\u0627\u062a \u0628\u0648\u0643\u064a\u0646\u062c\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u0639\u0646 ${hotel}.`,
+	Spanish: (hotel) => `Assalamu alaikum Jannat Booking, me gustaria consultar sobre ${hotel}.`,
+	French: (hotel) => `Assalamu alaikum Jannat Booking, je souhaite me renseigner sur ${hotel}.`,
 	Urdu: (hotel) => `السلام علیکم Jannat Booking، میں ${hotel} کے بارے میں پوچھنا چاہتا/چاہتی ہوں۔`,
-	Hindi: (hotel) => `नमस्ते Jannat Booking, मैं ${hotel} के बारे में पूछना चाहता/चाहती हूँ।`,
-	Indonesian: (hotel) => `Halo Jannat Booking, saya ingin bertanya tentang ${hotel}.`,
-	"Malay (Malaysia)": (hotel) => `Halo Jannat Booking, saya ingin bertanya tentang ${hotel}.`,
+	Hindi: (hotel) => `\u0905\u0938\u094d\u0938\u0932\u093e\u092e\u0941 \u0905\u0932\u0948\u0915\u0941\u092e Jannat Booking, \u092e\u0948\u0902 ${hotel} \u0915\u0947 \u092c\u093e\u0930\u0947 \u092e\u0947\u0902 \u092a\u0942\u091b\u0928\u093e \u091a\u093e\u0939\u0924\u093e/\u091a\u093e\u0939\u0924\u0940 \u0939\u0942\u0901\u0964`,
+	Indonesian: (hotel) => `Assalamualaikum Jannat Booking, saya ingin bertanya tentang ${hotel}.`,
+	"Malay (Malaysia)": (hotel) => `Assalamualaikum Jannat Booking, saya ingin bertanya tentang ${hotel}.`,
 };
 
 const CHAT_DEFAULT_MESSAGE_PREFIXES = Object.values(CHAT_DEFAULT_MESSAGE_TEMPLATES).map((template) =>

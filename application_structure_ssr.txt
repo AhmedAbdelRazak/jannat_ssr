@@ -466,3 +466,18 @@ Production Cutover State
   - Home, rooms, offers, private client-payment, robots.txt, and sitemap.xml returned HTTP 200.
   - jannat-ssr PM2 error log was clean.
   - Rendered HTML marker checks for agentEmail, priceVariantDataId, priceVariantItemId, agentName, and companyName passed on key pages.
+
+2026-06-21 Chat Entry Islamic Greeting Tightening
+- Files:
+  - components/SupportWidget.js
+  - components/SingleHotelView.js
+  - components/HotelDealsSection.js
+  - components/RoomCard.js
+- Public chat entry behavior:
+  - Guest-side starter/prefill messages now begin with a readable Islamic
+    greeting instead of generic Hello/Hola/Bonjour/Halo wording.
+  - Arabic paths use native-script "السلام عليكم"; English, Spanish, French,
+    and other Latin-script paths use "Assalamu alaikum"; Indonesian and Malay
+    use "Assalamualaikum"; Hindi uses native-script Islamic greeting.
+  - This aligns the first visible frontend chat text with the backend AI
+    opening-greeting contract.

@@ -123,8 +123,8 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const showDrivingDistance = driving && driving !== walking;
 	const phone = website?.phone || "+1 (909) 222-3374";
 	const supportMessage = isArabic
-		? `مرحبا ${ARABIC_BRAND_NAME}، أرغب بالاستفسار عن ${hotelName}.`
-		: `Hello Jannat Booking, I am interested in ${hotelName}.`;
+		? `\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645 ${ARABIC_BRAND_NAME}\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u0639\u0646 ${hotelName}.`
+		: `Assalamu alaikum Jannat Booking, I am interested in ${hotelName}.`;
 	const about =
 		stripHtml(isArabic ? hotel.aboutHotelArabic || hotel.aboutHotel : hotel.aboutHotel) ||
 		(isArabic

@@ -101,8 +101,8 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 	const lockLabel = stay.locked ? text.fixedDates : text.selectedStay;
 	const totalLabel = deal.type === "monthly" ? text.packageTotal : text.offerTotal;
 	const supportMessage = isArabic
-		? `\u0645\u0631\u062d\u0628\u0627 ${ARABIC_BRAND_NAME}\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u0639\u0646 ${deal.name} - ${roomName} \u0641\u064a ${hotelName}.`
-		: `Hello Jannat Booking, I am interested in ${deal.name} - ${roomName} at ${hotelName}.`;
+		? `\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645 ${ARABIC_BRAND_NAME}\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u0639\u0646 ${deal.name} - ${roomName} \u0641\u064a ${hotelName}.`
+		: `Assalamu alaikum Jannat Booking, I am interested in ${deal.name} - ${roomName} at ${hotelName}.`;
 
 	const handleAddDeal = () => {
 		const averagePrice = totalSar / Math.max(1, pricingRows.length || 1);
