@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Globe2, Headset, HeartHandshake, Send, Smile, Star, X } from "lucide-react";
 import { apiUrl, closePublicSupportCase, socketBaseUrl } from "../lib/api";
 import { trackConversion } from "../lib/analyticsEvents";
@@ -10,7 +11,7 @@ import {
 	replaceSearchWithoutReload,
 } from "../lib/chatQueryParams";
 import { ARABIC_BRAND_NAME, BRAND_NAME, CONTACT_EMAIL } from "../lib/constants";
-import { titleCase } from "../lib/format";
+import { slugifyHotel, titleCase } from "../lib/format";
 import { useJannatApp } from "./JannatAppProvider";
 
 const JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
@@ -388,6 +389,29 @@ const isClosedSupportCaseError = (error = {}) =>
 const supportClientTag = () =>
 	`client:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 
+const normalizeHotelSlug = (value = "") => {
+	try {
+		return decodeURIComponent(String(value || ""));
+	} catch {
+		return String(value || "");
+	}
+};
+
+const singleHotelSlugFromPathname = (pathname = "") => {
+	const match = String(pathname || "").match(/\/single-hotel\/([^/?#]+)/i);
+	return match ? normalizeHotelSlug(match[1]).toLowerCase() : "";
+};
+
+const hotelSlugKey = (hotel = {}) =>
+	normalizeHotelSlug(slugifyHotel(hotel?.hotelName || "")).toLowerCase();
+
+const supportHotelDisplayName = (hotel = {}, isArabic = false) =>
+	String(
+		isArabic && hotel?.hotelName_OtherLanguage
+			? hotel.hotelName_OtherLanguage
+			: titleCase(hotel?.hotelName || "")
+	).trim();
+
 const DEFAULT_CHAT_HOTEL_NAME = "Zad Al Sad";
 
 const CHAT_DEFAULT_MESSAGE_TEMPLATES = {
@@ -408,6 +432,21 @@ const CHAT_DEFAULT_MESSAGE_PREFIXES = Object.values(CHAT_DEFAULT_MESSAGE_TEMPLAT
 const defaultChatMessageFor = (language, hotelName) => {
 	const template = CHAT_DEFAULT_MESSAGE_TEMPLATES[language] || CHAT_DEFAULT_MESSAGE_TEMPLATES.English;
 	return template(titleCase(hotelName || DEFAULT_CHAT_HOTEL_NAME));
+};
+
+const receptionChatMessageFor = (language, hotelName) => {
+	const hotel = titleCase(hotelName || DEFAULT_CHAT_HOTEL_NAME);
+	const templates = {
+		English: `Assalamu alaikum, I would like to chat with reception about ${hotel}.`,
+		Arabic: `\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u062a\u062d\u062f\u062b \u0645\u0639 \u0627\u0644\u0627\u0633\u062a\u0642\u0628\u0627\u0644 \u0628\u062e\u0635\u0648\u0635 ${hotel}.`,
+		Spanish: `Assalamu alaikum, me gustaria hablar con recepcion sobre ${hotel}.`,
+		French: `Assalamu alaikum, je souhaite parler avec la reception au sujet de ${hotel}.`,
+		Urdu: `السلام علیکم، میں ${hotel} کے بارے میں ریسپشن سے بات کرنا چاہتا/چاہتی ہوں۔`,
+		Hindi: `\u0905\u0938\u094d\u0938\u0932\u093e\u092e\u0941 \u0905\u0932\u0948\u0915\u0941\u092e, \u092e\u0948\u0902 ${hotel} \u0915\u0947 \u092c\u093e\u0930\u0947 \u092e\u0947\u0902 \u0930\u093f\u0938\u0947\u092a\u094d\u0936\u0928 \u0938\u0947 \u092c\u093e\u0924 \u0915\u0930\u0928\u093e \u091a\u093e\u0939\u0924\u093e/\u091a\u093e\u0939\u0924\u0940 \u0939\u0942\u0901\u0964`,
+		Indonesian: `Assalamualaikum, saya ingin berbicara dengan resepsionis tentang ${hotel}.`,
+		"Malay (Malaysia)": `Assalamualaikum, saya ingin bercakap dengan resepsi tentang ${hotel}.`,
+	};
+	return templates[language] || templates.English;
 };
 
 const isGeneratedDefaultChatMessage = (value = "") => {
@@ -571,6 +610,7 @@ const renderMessageWithLinks = (text = "") => {
 
 export default function SupportWidget({ hotels = [] }) {
 	const { isArabic } = useJannatApp();
+	const pathname = usePathname() || "";
 	const siteDefaultChatLanguage = isArabic ? "Arabic" : "English";
 	const [open, setOpen] = useState(false);
 	const [caseId, setCaseId] = useState("");
@@ -614,7 +654,6 @@ export default function SupportWidget({ hotels = [] }) {
 	const isChatArabic = languageName === "Arabic";
 	const chatBrandName = isChatArabic ? ARABIC_BRAND_NAME : BRAND_NAME;
 	const chatLanguageLabel = chatCopy.conversationLanguage;
-	const chatLabel = chatCopy.customerSupport;
 	const supportHotel = useMemo(
 		() => ({
 			_id: JANNAT_SUPPORT_HOTEL_ID,
@@ -624,10 +663,31 @@ export default function SupportWidget({ hotels = [] }) {
 		[chatBrandName]
 	);
 	const hotelOptions = useMemo(() => [supportHotel, ...hotels], [hotels, supportHotel]);
+	const pageHotelSlug = useMemo(() => singleHotelSlugFromPathname(pathname), [pathname]);
+	const pageHotel = useMemo(
+		() =>
+			pageHotelSlug
+				? hotels.find((hotel) => hotelSlugKey(hotel) === pageHotelSlug) || null
+				: null,
+		[hotels, pageHotelSlug]
+	);
 	const selectedHotel = useMemo(
 		() => hotelOptions.find((hotel) => String(hotel._id) === String(form.hotelId)),
 		[form.hotelId, hotelOptions]
 	);
+	const pageHotelDisplayName = useMemo(
+		() => supportHotelDisplayName(pageHotel, isChatArabic),
+		[isChatArabic, pageHotel]
+	);
+	const hotelContext =
+		selectedHotel && String(selectedHotel._id) !== JANNAT_SUPPORT_HOTEL_ID
+			? selectedHotel
+			: pageHotel;
+	const hotelContextName = supportHotelDisplayName(hotelContext, isChatArabic);
+	const receptionChatLabel = isChatArabic ? "تحدث مع الاستقبال" : "Chat With Reception";
+	const chatLabel = hotelContext ? receptionChatLabel : chatCopy.customerSupport;
+	const chatHeaderTitle = hotelContextName || chatBrandName;
+	const chatHeaderSubtitle = hotelContext ? receptionChatLabel : chatCopy.hotelSupport;
 	const topics = useMemo(
 		() =>
 			supportTopicOptions(isChatArabic).map((topic) => ({
@@ -665,6 +725,43 @@ export default function SupportWidget({ hotels = [] }) {
 			window.removeEventListener("orientationchange", refresh);
 		};
 	}, []);
+
+	useEffect(() => {
+		if (caseId || !pageHotel?._id) return;
+		const pageHotelId = String(pageHotel._id);
+		const nextHotelName = pageHotelDisplayName || titleCase(pageHotel.hotelName);
+		const nextDefaultMessage = receptionChatMessageFor(languageName, nextHotelName);
+		setForm((current) => {
+			if (current.hotelId && String(current.hotelId) !== pageHotelId) return current;
+			const currentMessage = String(current.message || "").trim();
+			const generatedMessage = String(generatedMessageRef.current || "").trim();
+			const manuallyEdited = messageManuallyEditedRef.current;
+			const shouldRefreshMessage =
+				!currentMessage ||
+				(!manuallyEdited &&
+					((generatedMessage && currentMessage === generatedMessage) ||
+						isGeneratedDefaultChatMessage(currentMessage)));
+			const message = shouldRefreshMessage ? nextDefaultMessage : current.message;
+			if (shouldRefreshMessage) {
+				generatedMessageRef.current = nextDefaultMessage;
+				messageManuallyEditedRef.current = false;
+			}
+			if (
+				String(current.hotelId) === pageHotelId &&
+				current.hotelName === nextHotelName &&
+				current.message === message
+			) {
+				return current;
+			}
+			return {
+				...current,
+				hotelId: pageHotelId,
+				hotelName: nextHotelName,
+				topic: current.topic || "reserve_room",
+				message,
+			};
+		});
+	}, [caseId, languageName, pageHotel, pageHotelDisplayName]);
 
 	useEffect(() => {
 		if (caseId) return;
@@ -717,6 +814,36 @@ export default function SupportWidget({ hotels = [] }) {
 		(fields = {}) => writeChatQuery(fields, { open: true }),
 		[writeChatQuery]
 	);
+
+	const pageHotelChatFields = useCallback(
+		(overrides = {}) => {
+			if (!pageHotel?._id) return overrides;
+			const hotelId = String(pageHotel._id);
+			const hotelName = pageHotelDisplayName || titleCase(pageHotel.hotelName);
+			const currentMessage = String(form.message || "").trim();
+			const defaultMessage = receptionChatMessageFor(languageName, hotelName);
+			const inquiryDetails =
+				overrides.inquiryDetails ||
+				(currentMessage && !isGeneratedDefaultChatMessage(currentMessage)
+					? currentMessage
+					: defaultMessage);
+			return {
+				hotelId,
+				hotelName,
+				inquiry: form.topic || "reserve_room",
+				inquiryDetails,
+				...overrides,
+			};
+		},
+		[form.message, form.topic, languageName, pageHotel, pageHotelDisplayName]
+	);
+
+	useEffect(() => {
+		if (!open || caseId || !pageHotel?._id) return;
+		const queryState = readChatQueryParams(window.location.search);
+		if (queryState.hotelId) return;
+		writeChatQuery(pageHotelChatFields(), { open: true });
+	}, [caseId, open, pageHotel, pageHotelChatFields, writeChatQuery]);
 
 	const createSupportCaseFromMessage = useCallback(
 		async (initialMessage = "", options = {}) => {
@@ -1270,7 +1397,7 @@ export default function SupportWidget({ hotels = [] }) {
 			<button
 				className="support-button"
 				type="button"
-				onClick={() => openChatPanel({}, "Chat Window Opened_Main")}
+				onClick={() => openChatPanel(pageHotelChatFields(), "Chat Window Opened_Main")}
 				aria-label={chatLabel}
 			>
 				<Headset size={21} />
@@ -1281,8 +1408,8 @@ export default function SupportWidget({ hotels = [] }) {
 				<section className="support-panel" aria-label="Jannat Booking support">
 					<header className="support-head">
 						<div className="support-head-copy">
-							<strong>{chatBrandName}</strong>
-							<span>{chatCopy.hotelSupport}</span>
+							<strong>{chatHeaderTitle}</strong>
+							<span>{chatHeaderSubtitle}</span>
 						</div>
 						<div className="support-head-actions">
 							{caseId ? (
@@ -1439,7 +1566,7 @@ export default function SupportWidget({ hotels = [] }) {
 									<option value="">{chatCopy.chooseHotel}</option>
 									{hotelOptions.map((hotel) => (
 										<option key={hotel._id} value={hotel._id}>
-											{titleCase(hotel.hotelName)}
+											{supportHotelDisplayName(hotel, isChatArabic)}
 										</option>
 									))}
 								</select>

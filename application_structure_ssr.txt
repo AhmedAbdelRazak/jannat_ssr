@@ -497,3 +497,17 @@ Production Cutover State
   - This keeps the production chat smooth when the backend five-minute idle close
     rule has already closed an older case while the guest still has the widget
     open.
+
+2026-06-21 Single-Hotel Reception Chat Context
+- Files:
+  - components/SupportWidget.js
+  - components/SingleHotelView.js
+- Public chat behavior:
+  - On /single-hotel/[slug] pages, the floating support widget now detects the
+    current hotel from the route and preselects that hotel in the chat form.
+  - The floating chat button and panel header use reception wording on hotel
+    pages: "Chat With Reception" in English and "تحدث مع الاستقبال" in Arabic.
+  - If a guest lands directly on a single-hotel URL with chat=open but without
+    chatHotelId, the widget fills and writes the matching hotel context.
+  - Single-hotel CTA starter messages now ask to chat with reception about the
+    selected hotel instead of using a generic support inquiry sentence.
