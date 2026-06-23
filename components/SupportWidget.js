@@ -1317,9 +1317,9 @@ export default function SupportWidget({ hotels = [] }) {
 		};
 		const onTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
-			if (data.name && data.name === form.name) return;
-			if (guestTypingLocalRef.current) return;
-			if (Date.now() - Number(lastGuestSendAtRef.current || 0) < 900) return;
+			const isAiTyping = data.isAi === true;
+			if (!isAiTyping && data.name && data.name === form.name) return;
+			if (!isAiTyping && guestTypingLocalRef.current) return;
 			setTypingStatus(`${data.name || chatBrandName} ${chatCopy.isTyping}`);
 			window.clearTimeout(typingStatusTimerRef.current);
 			typingStatusTimerRef.current = window.setTimeout(() => setTypingStatus(""), 4500);
