@@ -92,6 +92,7 @@ const CHAT_COPY = {
 		typeMessage: "Type your message",
 		endChat: "End chat",
 		rateConversation: "How was this conversation?",
+		ratingCaption: "Your feedback helps us keep support fast, clear, and helpful.",
 		submitRating: "Submit rating",
 		skipRating: "Skip",
 		ratingThanks: "Thank you for your feedback. This chat has been closed.",
@@ -128,6 +129,7 @@ const CHAT_COPY = {
 		typeMessage: "اكتب رسالتك",
 		endChat: "إنهاء المحادثة",
 		rateConversation: "كيف كانت هذه المحادثة؟",
+		ratingCaption: "يساعدنا تقييمك في الحفاظ على دعم سريع وواضح ومفيد.",
 		submitRating: "إرسال التقييم",
 		skipRating: "تخطي",
 		ratingThanks: "شكرا لتقييمك. تم إغلاق المحادثة.",
@@ -164,6 +166,7 @@ const CHAT_COPY = {
 		typeMessage: "Escribe tu mensaje",
 		endChat: "Terminar chat",
 		rateConversation: "Como fue esta conversacion?",
+		ratingCaption: "Tu opinion nos ayuda a mantener el soporte rapido, claro y util.",
 		submitRating: "Enviar calificacion",
 		skipRating: "Omitir",
 		ratingThanks: "Gracias por tu comentario. Este chat se ha cerrado.",
@@ -200,6 +203,7 @@ const CHAT_COPY = {
 		typeMessage: "Ecrivez votre message",
 		endChat: "Terminer le chat",
 		rateConversation: "Comment s'est passee cette conversation ?",
+		ratingCaption: "Votre avis nous aide a garder une assistance rapide, claire et utile.",
 		submitRating: "Envoyer la note",
 		skipRating: "Ignorer",
 		ratingThanks: "Merci pour votre avis. Ce chat est ferme.",
@@ -236,6 +240,7 @@ const CHAT_COPY = {
 		typeMessage: "اپنا پیغام لکھیں",
 		endChat: "چیٹ ختم کریں",
 		rateConversation: "\u06cc\u06c1 \u06af\u0641\u062a\u06af\u0648 \u06a9\u06cc\u0633\u06cc \u0631\u06c1\u06cc\u061f",
+		ratingCaption: "آپ کی رائے ہمیں سپورٹ تیز، واضح اور مددگار رکھنے میں مدد دیتی ہے۔",
 		submitRating: "\u0631\u06cc\u0679\u0646\u06af \u0628\u06be\u06cc\u062c\u06cc\u06ba",
 		skipRating: "\u0686\u06be\u0648\u0691 \u062f\u06cc\u06ba",
 		ratingThanks: "\u0622\u067e \u06a9\u06cc \u0631\u0627\u0626\u06d2 \u06a9\u0627 \u0634\u06a9\u0631\u06cc\u06c1\u06d4 \u06cc\u06c1 \u0686\u06cc\u0679 \u0628\u0646\u062f \u06a9\u0631 \u062f\u06cc \u06af\u0626\u06cc \u06c1\u06d2\u06d4",
@@ -272,6 +277,7 @@ const CHAT_COPY = {
 		typeMessage: "अपना संदेश लिखें",
 		endChat: "चैट समाप्त करें",
 		rateConversation: "\u092f\u0939 \u092c\u093e\u0924\u091a\u0940\u0924 \u0915\u0948\u0938\u0940 \u0930\u0939\u0940?",
+		ratingCaption: "आपकी प्रतिक्रिया हमें सहायता को तेज, स्पष्ट और उपयोगी बनाए रखने में मदद करती है।",
 		submitRating: "\u0930\u0947\u091f\u093f\u0902\u0917 \u092d\u0947\u091c\u0947\u0902",
 		skipRating: "\u091b\u094b\u0921\u093c\u0947\u0902",
 		ratingThanks: "\u0906\u092a\u0915\u0940 \u092a\u094d\u0930\u0924\u093f\u0915\u094d\u0930\u093f\u092f\u093e \u0915\u0947 \u0932\u093f\u090f \u0927\u0928\u094d\u092f\u0935\u093e\u0926\u0964 \u092f\u0939 \u091a\u0948\u091f \u092c\u0902\u0926 \u0915\u0930 \u0926\u0940 \u0917\u0908 \u0939\u0948\u0964",
@@ -308,6 +314,7 @@ const CHAT_COPY = {
 		typeMessage: "Ketik pesan Anda",
 		endChat: "Akhiri chat",
 		rateConversation: "Bagaimana percakapan ini?",
+		ratingCaption: "Masukan Anda membantu kami menjaga dukungan tetap cepat, jelas, dan bermanfaat.",
 		submitRating: "Kirim rating",
 		skipRating: "Lewati",
 		ratingThanks: "Terima kasih atas masukan Anda. Chat ini telah ditutup.",
@@ -344,6 +351,7 @@ const CHAT_COPY = {
 		typeMessage: "Taip mesej anda",
 		endChat: "Tamatkan chat",
 		rateConversation: "Bagaimana perbualan ini?",
+		ratingCaption: "Maklum balas anda membantu kami memastikan sokongan cepat, jelas, dan berguna.",
 		submitRating: "Hantar rating",
 		skipRating: "Langkau",
 		ratingThanks: "Terima kasih atas maklum balas anda. Chat ini telah ditutup.",
@@ -1677,20 +1685,27 @@ export default function SupportWidget({ hotels = [] }) {
 					</header>
 					{notice ? <p className="notice">{notice}</p> : null}
 					{caseId ? (
-						<>
-							{ratingVisible ? (
-								<div className="rating-panel" role="group" aria-label={chatCopy.rateConversation || feedbackCopy.rateConversation}>
-									<strong>{chatCopy.rateConversation || feedbackCopy.rateConversation}</strong>
-									<div className="rating-stars">
+						ratingVisible ? (
+							<div className="rating-panel" role="group" aria-label={chatCopy.rateConversation || feedbackCopy.rateConversation}>
+								<div className="rating-card">
+									<div className="rating-mark" aria-hidden="true">
+										<HeartHandshake size={27} />
+									</div>
+									<div className="rating-copy">
+										<strong>{chatCopy.rateConversation || feedbackCopy.rateConversation}</strong>
+										<p>{chatCopy.ratingCaption || CHAT_COPY.English.ratingCaption}</p>
+									</div>
+									<div className="rating-stars" aria-label={chatCopy.rateConversation || feedbackCopy.rateConversation}>
 										{[1, 2, 3, 4, 5].map((value) => (
 											<button
 												key={value}
 												type="button"
 												className={`rating-star${value <= rating ? " is-active" : ""}`}
 												onClick={() => setRating(value)}
-												aria-label={`${value} star${value === 1 ? "" : "s"}`}
+												aria-label={`${value} / 5`}
+												aria-pressed={value <= rating}
 											>
-												<Star size={19} />
+												<Star size={22} />
 											</button>
 										))}
 									</div>
@@ -1703,7 +1718,9 @@ export default function SupportWidget({ hotels = [] }) {
 										</button>
 									</div>
 								</div>
-							) : null}
+							</div>
+						) : (
+							<>
 							<div className="messages" ref={messagesContainerRef} role="log" aria-live="polite">
 								{messages.map((message, index) => {
 									const sender = brandText(message?.messageBy?.customerName || "Support", isChatArabic);
@@ -1739,7 +1756,7 @@ export default function SupportWidget({ hotels = [] }) {
 								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
-							{ratingVisible || conversationEnded ? null : (
+							{conversationEnded ? null : (
 								<form className="reply-form" onSubmit={sendReply}>
 									<button
 										type="button"
@@ -1781,7 +1798,8 @@ export default function SupportWidget({ hotels = [] }) {
 									</button>
 								</form>
 							)}
-						</>
+							</>
+						)
 					) : (
 						<form className="start-form support-form" onSubmit={startChat}>
 							{renderChatLanguageSelect(false)}
@@ -2614,33 +2632,78 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				.rating-panel {
-					flex: 0 0 auto;
-					display: grid;
-					gap: 10px;
-					padding: 12px 14px;
-					border-bottom: 1px solid rgba(36, 84, 125, 0.12);
+					flex: 1 1 auto;
+					min-height: 0;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					padding: 24px;
 					background:
-						linear-gradient(180deg, rgba(255, 250, 252, 0.98), rgba(246, 250, 252, 0.96)),
-						#ffffff;
+						radial-gradient(circle at 50% 0%, rgba(55, 212, 156, 0.16), transparent 38%),
+						linear-gradient(180deg, #f7fbfb 0%, #f7f8fb 100%);
+					overflow-y: auto;
+					overscroll-behavior: contain;
 				}
 
-				.rating-panel strong {
+				.rating-card {
+					width: 100%;
+					max-width: 334px;
+					display: grid;
+					justify-items: center;
+					gap: 14px;
+					padding: 24px 20px 22px;
+					border-radius: 8px;
+					border: 1px solid rgba(36, 84, 125, 0.14);
+					background:
+						linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 253, 252, 0.98)),
+						#fff;
+					box-shadow: 0 18px 42px rgba(15, 20, 35, 0.12);
+					text-align: center;
+				}
+
+				.rating-mark {
+					width: 58px;
+					height: 58px;
+					border-radius: 50%;
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					color: #fff;
+					background: linear-gradient(135deg, var(--zad-blue), var(--zad-green));
+					box-shadow: 0 12px 24px rgba(11, 143, 106, 0.22);
+				}
+
+				.rating-copy {
+					display: grid;
+					gap: 7px;
+					justify-items: center;
+				}
+
+				.rating-copy strong {
 					color: var(--zad-blue);
-					font-size: 13px;
+					font-size: 18px;
 					line-height: 1.25;
+				}
+
+				.rating-copy p {
+					margin: 0;
+					color: #516174;
+					font-size: 13px;
+					font-weight: 800;
+					line-height: 1.45;
 				}
 
 				.rating-stars,
 				.rating-actions {
 					display: flex;
 					align-items: center;
-					gap: 8px;
-					flex-wrap: wrap;
+					justify-content: center;
+					gap: 9px;
 				}
 
 				.rating-star {
-					width: 36px;
-					height: 36px;
+					width: 44px;
+					height: 44px;
 					border-radius: 8px;
 					border: 1px solid rgba(245, 166, 35, 0.28);
 					color: #b77900;
@@ -2649,11 +2712,23 @@ export default function SupportWidget({ hotels = [] }) {
 					align-items: center;
 					justify-content: center;
 					cursor: pointer;
+					transition:
+						transform 150ms ease,
+						border-color 150ms ease,
+						background 150ms ease,
+						box-shadow 150ms ease;
 				}
 
 				.rating-star svg {
 					fill: transparent;
 					stroke-width: 2.25;
+				}
+
+				.rating-star:hover,
+				.rating-star:focus-visible {
+					transform: translateY(-1px);
+					border-color: rgba(245, 166, 35, 0.54);
+					box-shadow: 0 8px 18px rgba(245, 166, 35, 0.14);
 				}
 
 				.rating-star.is-active {
@@ -2666,14 +2741,24 @@ export default function SupportWidget({ hotels = [] }) {
 					fill: currentColor;
 				}
 
+				.rating-actions {
+					width: 100%;
+					display: grid;
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+					margin-top: 3px;
+				}
+
 				.rating-submit,
 				.rating-skip {
-					min-height: 36px;
+					width: 100%;
+					min-height: 42px;
 					border-radius: 8px;
-					padding: 0 13px;
+					padding: 0 12px;
 					font-size: 12px;
 					font-weight: 950;
 					cursor: pointer;
+					white-space: normal;
+					line-height: 1.2;
 				}
 
 				.rating-submit {
@@ -2686,6 +2771,12 @@ export default function SupportWidget({ hotels = [] }) {
 					border: 1px solid rgba(36, 84, 125, 0.16);
 					color: var(--zad-blue);
 					background: #fff;
+				}
+
+				.rating-submit:disabled,
+				.rating-skip:disabled {
+					opacity: 0.62;
+					cursor: default;
 				}
 
 				@media (max-width: 640px) {
@@ -2792,7 +2883,22 @@ export default function SupportWidget({ hotels = [] }) {
 					}
 
 					.rating-panel {
-						padding: 11px 12px;
+						padding: 16px 14px;
+					}
+
+					.rating-card {
+						gap: 12px;
+						padding: 20px 16px;
+					}
+
+					.rating-mark {
+						width: 52px;
+						height: 52px;
+					}
+
+					.rating-star {
+						width: 40px;
+						height: 40px;
 					}
 
 					.support-language-row {

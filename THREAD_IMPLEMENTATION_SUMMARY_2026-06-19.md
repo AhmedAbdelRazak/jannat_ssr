@@ -32,6 +32,9 @@ This document captures the implementation work completed while preparing the SSR
 - Fixed the dropdown arrow styling and responsive layout.
 - Updated the default chat message/template to follow the selected chat conversation language unless the user has already edited the message manually.
 - Preserved support case payload language fields for backend/admin customer-service visibility.
+- Follow-up on 2026-06-23: after a guest ends a support case, the rating state
+  now takes over the whole chat body like the legacy frontend behavior, while
+  keeping the newer SSR visual style, localized copy, and mobile-safe sizing.
 
 ## Checkout
 
