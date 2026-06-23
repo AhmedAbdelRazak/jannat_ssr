@@ -1557,12 +1557,42 @@ export default function SupportWidget({ hotels = [] }) {
 		sendReply(null, value, { clientAction: quickReply?.action || "" });
 	};
 
+	const requireClosedCase = (closedCase) => {
+		if (closedCase?.caseStatus !== "closed") {
+			throw new Error(chatCopy.closeError || "The chat could not be closed. Please try again.");
+		}
+		return closedCase;
+	};
+
 	const endChat = () => {
-		if (!caseId || busy) return;
+		if (!caseId || busy || closeInFlightRef.current) return;
+		const closingCaseId = caseId;
+		closeInFlightRef.current = true;
+		setBusy(true);
+		setError("");
 		setConversationEnded(true);
 		setRatingVisible(true);
 		setEmojiOpen(false);
 		setNotice("");
+		socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
+		closePublicSupportCase(closingCaseId)
+			.then(requireClosedCase)
+			.then((closedCase) => {
+				setCaseMeta(closedCase);
+				if (Array.isArray(closedCase?.conversation)) {
+					setMessages((current) => mergeConversationMessages(current, closedCase.conversation));
+				}
+				closeInFlightRef.current = false;
+				setBusy(false);
+			})
+			.catch((err) => {
+				closeInFlightRef.current = false;
+				setBusy(false);
+				setConversationEnded(false);
+				setRatingVisible(false);
+				setError(err.message || chatCopy.closeError);
+				socketRef.current?.emit("joinRoom", { caseId: closingCaseId });
+			});
 	};
 
 	const closeChatWithRating = (selectedRating = null) => {
@@ -1588,6 +1618,7 @@ export default function SupportWidget({ hotels = [] }) {
 		setNotice(successNotice);
 
 		closePublicSupportCase(closingCaseId, payload)
+			.then(requireClosedCase)
 			.then(() => {
 				closeInFlightRef.current = false;
 			})
