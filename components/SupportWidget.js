@@ -87,7 +87,7 @@ const CHAT_COPY = {
 		chooseHotel: "Choose a hotel",
 		supportTopic: "Support topic",
 		message: "Message",
-		messagePlaceholder: "Tell us the room or dates you are looking for.",
+		messagePlaceholder: "Tell us how we can help today.",
 		startChat: "Start chat",
 		typeMessage: "Type your message",
 		endChat: "End chat",
@@ -124,7 +124,7 @@ const CHAT_COPY = {
 		chooseHotel: "اختر الفندق",
 		supportTopic: "نوع المساعدة",
 		message: "الرسالة",
-		messagePlaceholder: "اكتب الغرفة أو التواريخ التي تبحث عنها.",
+		messagePlaceholder: "اكتب كيف يمكننا مساعدتك اليوم.",
 		startChat: "ابدأ المحادثة",
 		typeMessage: "اكتب رسالتك",
 		endChat: "إنهاء المحادثة",
@@ -161,7 +161,7 @@ const CHAT_COPY = {
 		chooseHotel: "Elige un hotel",
 		supportTopic: "Tema de ayuda",
 		message: "Mensaje",
-		messagePlaceholder: "Cuéntanos la habitacion o fechas que buscas.",
+		messagePlaceholder: "Cuentanos como podemos ayudarte hoy.",
 		startChat: "Iniciar chat",
 		typeMessage: "Escribe tu mensaje",
 		endChat: "Terminar chat",
@@ -198,7 +198,7 @@ const CHAT_COPY = {
 		chooseHotel: "Choisir un hotel",
 		supportTopic: "Sujet d'aide",
 		message: "Message",
-		messagePlaceholder: "Indiquez la chambre ou les dates recherchees.",
+		messagePlaceholder: "Dites-nous comment nous pouvons vous aider aujourd'hui.",
 		startChat: "Demarrer le chat",
 		typeMessage: "Ecrivez votre message",
 		endChat: "Terminer le chat",
@@ -235,7 +235,7 @@ const CHAT_COPY = {
 		chooseHotel: "ہوٹل منتخب کریں",
 		supportTopic: "مدد کا موضوع",
 		message: "پیغام",
-		messagePlaceholder: "کمرہ یا تاریخیں لکھیں جن کی آپ تلاش کر رہے ہیں۔",
+		messagePlaceholder: "بتائیں آج ہم آپ کی کیسے مدد کر سکتے ہیں۔",
 		startChat: "چیٹ شروع کریں",
 		typeMessage: "اپنا پیغام لکھیں",
 		endChat: "چیٹ ختم کریں",
@@ -272,7 +272,7 @@ const CHAT_COPY = {
 		chooseHotel: "होटल चुनें",
 		supportTopic: "सहायता विषय",
 		message: "संदेश",
-		messagePlaceholder: "आप जिस कमरे या तारीखों की तलाश कर रहे हैं, वह लिखें।",
+		messagePlaceholder: "बताएं, आज हम आपकी कैसे मदद कर सकते हैं।",
 		startChat: "चैट शुरू करें",
 		typeMessage: "अपना संदेश लिखें",
 		endChat: "चैट समाप्त करें",
@@ -309,7 +309,7 @@ const CHAT_COPY = {
 		chooseHotel: "Pilih hotel",
 		supportTopic: "Topik bantuan",
 		message: "Pesan",
-		messagePlaceholder: "Beri tahu kamar atau tanggal yang Anda cari.",
+		messagePlaceholder: "Beri tahu bagaimana kami dapat membantu hari ini.",
 		startChat: "Mulai chat",
 		typeMessage: "Ketik pesan Anda",
 		endChat: "Akhiri chat",
@@ -346,7 +346,7 @@ const CHAT_COPY = {
 		chooseHotel: "Pilih hotel",
 		supportTopic: "Topik bantuan",
 		message: "Mesej",
-		messagePlaceholder: "Beritahu kami bilik atau tarikh yang anda cari.",
+		messagePlaceholder: "Beritahu kami bagaimana kami boleh membantu hari ini.",
 		startChat: "Mulakan chat",
 		typeMessage: "Taip mesej anda",
 		endChat: "Tamatkan chat",
@@ -974,7 +974,6 @@ export default function SupportWidget({ hotels = [] }) {
 	const createSupportCaseFromMessage = useCallback(
 		async (initialMessage = "", options = {}) => {
 			const cleanMessage = String(initialMessage || "").trim();
-			const generatedPrefillMessage = isGeneratedDefaultChatMessage(cleanMessage);
 			if (!form.name.trim() || !form.contact.trim() || !selectedHotel || !cleanMessage) {
 				throw supportRequestError(chatCopy.requiredError, 400, "REQUIRED_FIELDS");
 			}
@@ -1015,12 +1014,8 @@ export default function SupportWidget({ hotels = [] }) {
 				sourceWebsite: "jannatbooking_ssr",
 				sourcePage: "jannatbooking_support_widget",
 				sourceUrl: typeof window !== "undefined" ? window.location.href : "",
-				...(generatedPrefillMessage
-					? {}
-					: {
-							initialClientMessage: cleanMessage,
-							initialClientTag: supportClientTag(),
-					  }),
+				initialClientMessage: cleanMessage,
+				initialClientTag: supportClientTag(),
 			};
 			const res = await fetch(apiUrl("/support-cases/new"), {
 				method: "POST",

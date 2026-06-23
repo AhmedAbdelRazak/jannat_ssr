@@ -35,6 +35,10 @@ This document captures the implementation work completed while preparing the SSR
 - Follow-up on 2026-06-23: after a guest ends a support case, the rating state
   now takes over the whole chat body like the legacy frontend behavior, while
   keeping the newer SSR visual style, localized copy, and mobile-safe sizing.
+- Follow-up on 2026-06-23: support-case creation always sends the initial chat
+  textarea message, including the generated friendly intro. This prevents a
+  live case from starting with only the backend "reviewing your message" hold
+  entry and no AI-answerable guest turn.
 
 ## Checkout
 
