@@ -751,6 +751,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [typingStatus, setTypingStatus] = useState("");
+	const [typingStatusIsAi, setTypingStatusIsAi] = useState(false);
 	const [emojiOpen, setEmojiOpen] = useState(false);
 	const [isGuestTypingLocal, setIsGuestTypingLocal] = useState(false);
 	const [ratingVisible, setRatingVisible] = useState(false);
@@ -1145,6 +1146,7 @@ export default function SupportWidget({ hotels = [] }) {
 		setMessages([]);
 		setReply("");
 		setTypingStatus("");
+		setTypingStatusIsAi(false);
 		setEmojiOpen(false);
 		setRatingVisible(false);
 		setConversationEnded(false);
@@ -1313,6 +1315,7 @@ export default function SupportWidget({ hotels = [] }) {
 		const onReceiveMessage = (message = {}) => {
 			if (message.caseId && String(message.caseId) !== String(caseId)) return;
 			setTypingStatus("");
+			setTypingStatusIsAi(false);
 			setMessages((current) => mergeConversationMessages(current, [message]));
 		};
 		const onTyping = (data = {}) => {
@@ -1321,12 +1324,17 @@ export default function SupportWidget({ hotels = [] }) {
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && guestTypingLocalRef.current) return;
 			setTypingStatus(`${data.name || chatBrandName} ${chatCopy.isTyping}`);
+			setTypingStatusIsAi(isAiTyping);
 			window.clearTimeout(typingStatusTimerRef.current);
-			typingStatusTimerRef.current = window.setTimeout(() => setTypingStatus(""), 4500);
+			typingStatusTimerRef.current = window.setTimeout(() => {
+				setTypingStatus("");
+				setTypingStatusIsAi(false);
+			}, 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
 			setTypingStatus("");
+			setTypingStatusIsAi(false);
 		};
 		const onCloseCase = (payload = {}) => {
 			const closedCaseId = String(payload?.case?._id || payload?.caseId || "");
@@ -1341,6 +1349,7 @@ export default function SupportWidget({ hotels = [] }) {
 			setRatingVisible(true);
 			setEmojiOpen(false);
 			setTypingStatus("");
+			setTypingStatusIsAi(false);
 			setNotice("");
 		};
 
@@ -1564,6 +1573,7 @@ export default function SupportWidget({ hotels = [] }) {
 			messages,
 			reply,
 			typingStatus,
+			typingStatusIsAi,
 			conversationEnded,
 			ratingVisible,
 		};
@@ -1588,6 +1598,7 @@ export default function SupportWidget({ hotels = [] }) {
 				setMessages(previousState.messages);
 				setReply(previousState.reply);
 				setTypingStatus(previousState.typingStatus);
+				setTypingStatusIsAi(previousState.typingStatusIsAi);
 				setConversationEnded(previousState.conversationEnded || true);
 				setRatingVisible(previousState.ratingVisible || true);
 				setNotice("");
@@ -1748,7 +1759,7 @@ export default function SupportWidget({ hotels = [] }) {
 										</div>
 									);
 								})}
-								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
+								{typingStatus && (typingStatusIsAi || !isGuestTypingLocal) ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
 							{conversationEnded ? null : (
