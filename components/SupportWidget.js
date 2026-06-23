@@ -527,6 +527,38 @@ const quickRepliesForMessage = (message = {}) =>
 				.slice(0, 4)
 		: [];
 
+const normalizedIdentity = (value = "") =>
+	String(value || "")
+		.trim()
+		.toLowerCase();
+
+const SUPPORT_MESSAGE_EMAILS = new Set([
+	"support@jannatbooking.com",
+	"management@xhotelpro.com",
+]);
+
+const SUPPORT_MESSAGE_USER_IDS = new Set([
+	"jannat-ai-support",
+	"jannat-system",
+	"system",
+]);
+
+const messageSenderRole = (message = {}, contact = "") => {
+	const email = normalizedIdentity(message?.messageBy?.customerEmail);
+	const userId = normalizedIdentity(message?.messageBy?.userId);
+	const contactValue = normalizedIdentity(contact);
+	if (
+		message?.isAi ||
+		message?.isSystem ||
+		SUPPORT_MESSAGE_EMAILS.has(email) ||
+		SUPPORT_MESSAGE_USER_IDS.has(userId)
+	) {
+		return "agent";
+	}
+	if (message?.clientTag || (contactValue && email === contactValue)) return "guest";
+	return userId || email ? "agent" : "guest";
+};
+
 const messageKey = (message = {}) =>
 	message?._id ||
 	message?.clientTag ||
@@ -544,21 +576,31 @@ const messageTimestamp = (message = {}) => {
 
 const messageFingerprint = (message = {}) =>
 	[
-		message?.isAi ? "ai" : message?.isSystem ? "system" : "guest",
+		messageSenderRole(message),
 		String(message?.messageBy?.customerEmail || "").trim().toLowerCase(),
 		String(message?.messageBy?.userId || "").trim().toLowerCase(),
 		normalizedMessageText(message?.message),
 	].join("|");
 
+const looseMessageFingerprint = (message = {}) =>
+	[messageSenderRole(message), normalizedMessageText(message?.message)].join("|");
+
 const sameVisibleMessage = (left = {}, right = {}) => {
 	const leftKey = messageKey(left);
 	const rightKey = messageKey(right);
 	if (leftKey && rightKey && leftKey === rightKey) return true;
-	if (messageFingerprint(left) !== messageFingerprint(right)) return false;
 	const leftTime = messageTimestamp(left);
 	const rightTime = messageTimestamp(right);
-	if (!leftTime || !rightTime) return true;
-	return Math.abs(leftTime - rightTime) <= 8000;
+	const closeInTime = !leftTime || !rightTime || Math.abs(leftTime - rightTime) <= 15000;
+	if (messageFingerprint(left) === messageFingerprint(right)) return closeInTime;
+	if (looseMessageFingerprint(left) !== looseMessageFingerprint(right)) return false;
+	if (!closeInTime) return false;
+	const leftHasServerId = Boolean(left?._id);
+	const rightHasServerId = Boolean(right?._id);
+	return (
+		Boolean(left?.clientTag || right?.clientTag) ||
+		leftHasServerId !== rightHasServerId
+	);
 };
 
 const mergeDuplicateMessage = (current = {}, incoming = {}) => {
@@ -1639,10 +1681,7 @@ export default function SupportWidget({ hotels = [] }) {
 								{messages.map((message, index) => {
 									const sender = brandText(message?.messageBy?.customerName || "Support", isChatArabic);
 									const text = brandText(message?.message || "", isChatArabic);
-									const isGuest =
-										message?.messageBy?.customerEmail &&
-										form.contact &&
-										message.messageBy.customerEmail === form.contact;
+									const isGuest = messageSenderRole(message, form.contact) === "guest";
 									const quickReplies = quickRepliesForMessage(message);
 									const showQuickReplies =
 										!isGuest &&

@@ -33,6 +33,14 @@ Build a server-rendered public JannatBooking website so search engines and LLM c
 - Jannat Booking has handled more than 10,000 reservations.
 - Pilgrims use Jannat Booking to book Makkah and Madinah hotels.
 - The platform helps with hotels near Al Haram, date-range pricing, payment questions, reservation updates, and human-handled cancellation requests.
+- 2026-06-23 support-widget note:
+  - The chatbot backend source of truth is
+    hotels_backend/docs/chatbot-rebuilt-conversation-engine-2026-06-23.md.
+  - components/SupportWidget.js now classifies support/system/AI messages as
+    agent bubbles and client-tagged/matching-contact messages as guest bubbles.
+  - Optimistic guest sends and server echoes are merged by stable sender/text
+    fingerprints plus clientTag/server-id checks to avoid duplicate visible
+    messages while keeping guest and CSR backgrounds distinct.
 
 Recommended Technical Direction
 - Preferred baseline when scaffolded:
