@@ -560,3 +560,20 @@ Production Cutover State
   - If this recurs, check `systemctl status cloudflared`, `journalctl -u
     cloudflared -n 80 --no-pager`, local PM2 ports, and public curls before
     assuming an app regression.
+
+2026-06-23 Support Chat Duplicate Message Guard
+- Files:
+  - components/SupportWidget.js
+- Public chat behavior:
+  - Guest messages use `clientTag` as the preferred local/server merge key, so
+    the optimistic bubble, Socket.IO echo, and HTTP response transcript collapse
+    into one visible message.
+  - Different sends with different `clientTag` values remain separate even when
+    the guest intentionally sends the same text twice.
+  - The optimistic/server-echo loose match window is wider for client-tagged
+    messages to tolerate slow network or delayed polling without showing a
+    duplicate guest bubble.
+  - Rating submit and skip close the visible case optimistically, show the
+    thank-you/closed notice immediately, and send the backend close request in
+    the background. If the request fails, the widget restores the rating panel
+    for retry instead of leaving the guest staring at a disabled UI.

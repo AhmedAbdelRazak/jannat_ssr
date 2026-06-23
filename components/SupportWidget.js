@@ -559,9 +559,12 @@ const messageSenderRole = (message = {}, contact = "") => {
 	return userId || email ? "agent" : "guest";
 };
 
+const normalizedClientTag = (message = {}) =>
+	String(message?.clientTag || "").trim();
+
 const messageKey = (message = {}) =>
+	normalizedClientTag(message) ||
 	message?._id ||
-	message?.clientTag ||
 	`${message?.date || ""}:${message?.messageBy?.customerEmail || ""}:${message?.message || ""}`;
 
 const normalizedMessageText = (value = "") =>
@@ -586,19 +589,26 @@ const looseMessageFingerprint = (message = {}) =>
 	[messageSenderRole(message), normalizedMessageText(message?.message)].join("|");
 
 const sameVisibleMessage = (left = {}, right = {}) => {
+	const leftClientTag = normalizedClientTag(left);
+	const rightClientTag = normalizedClientTag(right);
+	if (leftClientTag && rightClientTag) return leftClientTag === rightClientTag;
 	const leftKey = messageKey(left);
 	const rightKey = messageKey(right);
 	if (leftKey && rightKey && leftKey === rightKey) return true;
 	const leftTime = messageTimestamp(left);
 	const rightTime = messageTimestamp(right);
-	const closeInTime = !leftTime || !rightTime || Math.abs(leftTime - rightTime) <= 15000;
+	const hasOptimisticTag = Boolean(leftClientTag || rightClientTag);
+	const closeInTime =
+		!leftTime ||
+		!rightTime ||
+		Math.abs(leftTime - rightTime) <= (hasOptimisticTag ? 90000 : 15000);
 	if (messageFingerprint(left) === messageFingerprint(right)) return closeInTime;
 	if (looseMessageFingerprint(left) !== looseMessageFingerprint(right)) return false;
 	if (!closeInTime) return false;
 	const leftHasServerId = Boolean(left?._id);
 	const rightHasServerId = Boolean(right?._id);
 	return (
-		Boolean(left?.clientTag || right?.clientTag) ||
+		hasOptimisticTag ||
 		leftHasServerId !== rightHasServerId
 	);
 };
@@ -751,6 +761,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const messagesEndRef = useRef(null);
 	const replyTextareaRef = useRef(null);
 	const replyInFlightRef = useRef(false);
+	const closeInFlightRef = useRef(false);
 	const generatedMessageRef = useRef("");
 	const messageManuallyEditedRef = useRef(false);
 	const selectedChatLanguage = normalizeChatLanguage(chatLanguage) || siteDefaultChatLanguage;
@@ -1542,28 +1553,44 @@ export default function SupportWidget({ hotels = [] }) {
 		setNotice("");
 	};
 
-	const closeChatWithRating = async (selectedRating = null) => {
-		if (!caseId || busy) return;
+	const closeChatWithRating = (selectedRating = null) => {
+		if (!caseId || busy || closeInFlightRef.current) return;
 		const closingCaseId = caseId;
-		setBusy(true);
+		const previousState = {
+			caseMeta,
+			messages,
+			reply,
+			typingStatus,
+			conversationEnded,
+			ratingVisible,
+		};
+		closeInFlightRef.current = true;
 		setError("");
-		try {
-			const payload = selectedRating ? { rating: selectedRating } : {};
-			await closePublicSupportCase(closingCaseId, payload);
-			socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
-			resetCaseState();
-			setNotice(
-				selectedRating
-					? chatCopy.ratingThanks || feedbackCopy.ratingThanks
-					: chatCopy.chatClosed
-			);
-		} catch (err) {
-			setConversationEnded(true);
-			setRatingVisible(true);
-			setError(err.message || chatCopy.closeError);
-		} finally {
-			setBusy(false);
-		}
+		const payload = selectedRating ? { rating: selectedRating } : {};
+		const successNotice = selectedRating
+			? chatCopy.ratingThanks || feedbackCopy.ratingThanks
+			: chatCopy.chatClosed;
+		socketRef.current?.emit("leaveRoom", { caseId: closingCaseId });
+		resetCaseState();
+		setNotice(successNotice);
+
+		closePublicSupportCase(closingCaseId, payload)
+			.then(() => {
+				closeInFlightRef.current = false;
+			})
+			.catch((err) => {
+				closeInFlightRef.current = false;
+				setCaseId(closingCaseId);
+				setCaseMeta(previousState.caseMeta);
+				setMessages(previousState.messages);
+				setReply(previousState.reply);
+				setTypingStatus(previousState.typingStatus);
+				setConversationEnded(previousState.conversationEnded || true);
+				setRatingVisible(previousState.ratingVisible || true);
+				setNotice("");
+				setError(err.message || chatCopy.closeError);
+				socketRef.current?.emit("joinRoom", { caseId: closingCaseId });
+			});
 	};
 
 	const submitRating = () => closeChatWithRating(rating);
