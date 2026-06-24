@@ -1331,7 +1331,7 @@ export default function SupportWidget({ hotels = [] }) {
 			typingStatusTimerRef.current = window.setTimeout(() => {
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
-			}, isAiTyping ? 10000 : 4500);
+			}, isAiTyping ? 7000 : 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
