@@ -1323,13 +1323,15 @@ export default function SupportWidget({ hotels = [] }) {
 			const isAiTyping = data.isAi === true;
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && guestTypingLocalRef.current) return;
-			setTypingStatus(`${data.name || chatBrandName} ${chatCopy.isTyping}`);
+			const typingName =
+				data.name || (isAiTyping && caseMeta?.aiResponderName) || chatBrandName;
+			setTypingStatus(`${typingName} ${chatCopy.isTyping}`);
 			setTypingStatusIsAi(isAiTyping);
 			window.clearTimeout(typingStatusTimerRef.current);
 			typingStatusTimerRef.current = window.setTimeout(() => {
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
-			}, 4500);
+			}, isAiTyping ? 10000 : 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
@@ -1384,7 +1386,7 @@ export default function SupportWidget({ hotels = [] }) {
 			}
 			socketRef.current = null;
 		};
-	}, [caseId, form.name, open, resetCaseState, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping]);
+	}, [caseId, caseMeta?.aiResponderName, form.name, open, resetCaseState, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping]);
 
 	const scrollToBottom = useCallback((behavior = "smooth") => {
 		const container = messagesContainerRef.current;
