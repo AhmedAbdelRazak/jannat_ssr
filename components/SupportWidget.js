@@ -19,6 +19,7 @@ const JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
 const JANNAT_SUPPORTER_ID = "6553f1c6d06c5cea2f98a838";
 const SUPPORT_CHAT_STORAGE_KEY = "jannat_support_chat_state_v1";
 const SUPPORT_CHAT_STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SUPPORT_SEND_TIMEOUT_MS = 10000;
 
 const brandText = (value = "", isArabic = false) =>
 	String(value || "")
@@ -397,6 +398,9 @@ const isClosedSupportCaseError = (error = {}) =>
 	error?.status === 409 ||
 	/closed/i.test(String(error?.message || ""));
 
+const isAbortError = (error = {}) =>
+	error?.name === "AbortError" || /aborted/i.test(String(error?.message || ""));
+
 const readStoredSupportChatState = () => {
 	if (typeof window === "undefined") return null;
 	try {
@@ -770,6 +774,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const messagesEndRef = useRef(null);
 	const replyTextareaRef = useRef(null);
 	const replyInFlightRef = useRef(false);
+	const replyAbortControllerRef = useRef(null);
 	const closeInFlightRef = useRef(false);
 	const generatedMessageRef = useRef("");
 	const messageManuallyEditedRef = useRef(false);
@@ -1140,6 +1145,10 @@ export default function SupportWidget({ hotels = [] }) {
 	const resetCaseState = useCallback(() => {
 		window.clearTimeout(typingStatusTimerRef.current);
 		window.clearTimeout(guestTypingTimerRef.current);
+		replyAbortControllerRef.current?.abort();
+		replyAbortControllerRef.current = null;
+		replyInFlightRef.current = false;
+		closeInFlightRef.current = false;
 		clearStoredSupportChatState();
 		setCaseId("");
 		setCaseMeta(null);
@@ -1486,6 +1495,9 @@ export default function SupportWidget({ hotels = [] }) {
 		setError("");
 		setNotice("");
 		const clientTag = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		const controller = new AbortController();
+		const timeout = window.setTimeout(() => controller.abort(), SUPPORT_SEND_TIMEOUT_MS);
+		replyAbortControllerRef.current = controller;
 		try {
 			const conversation = {
 				messageBy: {
@@ -1510,6 +1522,7 @@ export default function SupportWidget({ hotels = [] }) {
 				method: "PUT",
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
 				body: JSON.stringify({ conversation }),
+				signal: controller.signal,
 			});
 			const data = await readResponseJson(res);
 			if (!res.ok || data?.error) {
@@ -1530,12 +1543,21 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 				return;
 			}
+			if (isAbortError(err) && closeInFlightRef.current) {
+				return;
+			}
 			setMessages((current) => current.filter((message) => messageKey(message) !== clientTag));
 			setReply(messageText);
-			setError(err.message || chatCopy.messageError);
+			setError(isAbortError(err) ? chatCopy.messageError : err.message || chatCopy.messageError);
 		} finally {
-			replyInFlightRef.current = false;
-			setBusy(false);
+			window.clearTimeout(timeout);
+			if (replyAbortControllerRef.current === controller) {
+				replyAbortControllerRef.current = null;
+			}
+			if (!closeInFlightRef.current) {
+				replyInFlightRef.current = false;
+				setBusy(false);
+			}
 		}
 	};
 
@@ -1567,8 +1589,11 @@ export default function SupportWidget({ hotels = [] }) {
 	};
 
 	const endChat = () => {
-		if (!caseId || busy || closeInFlightRef.current) return;
+		if (!caseId || closeInFlightRef.current || ratingVisible) return;
 		const closingCaseId = caseId;
+		replyAbortControllerRef.current?.abort();
+		replyAbortControllerRef.current = null;
+		replyInFlightRef.current = false;
 		closeInFlightRef.current = true;
 		setBusy(true);
 		setError("");
@@ -1711,7 +1736,7 @@ export default function SupportWidget({ hotels = [] }) {
 									}`}
 									type="button"
 									onClick={endChat}
-									disabled={busy || ratingVisible}
+									disabled={ratingVisible}
 								>
 									<HeartHandshake size={15} />
 									<span>{chatCopy.endChat}</span>
