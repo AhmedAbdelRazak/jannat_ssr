@@ -733,6 +733,15 @@ const renderMessageWithLinks = (text = "") => {
 	});
 };
 
+const typingStatusText = ({ name, isAi, languageName, fallback }) => {
+	const typingName = String(name || "").trim();
+	const suffix =
+		languageName === "Arabic" && isAi
+			? "\u062a\u0643\u062a\u0628 \u0627\u0644\u0622\u0646..."
+			: fallback;
+	return [typingName, suffix].filter(Boolean).join(" ");
+};
+
 export default function SupportWidget({ hotels = [] }) {
 	const { isArabic } = useJannatApp();
 	const pathname = usePathname() || "";
@@ -1334,7 +1343,14 @@ export default function SupportWidget({ hotels = [] }) {
 			if (!isAiTyping && guestTypingLocalRef.current) return;
 			const typingName =
 				data.name || (isAiTyping && caseMeta?.aiResponderName) || chatBrandName;
-			setTypingStatus(`${typingName} ${chatCopy.isTyping}`);
+			setTypingStatus(
+				typingStatusText({
+					name: typingName,
+					isAi: isAiTyping,
+					languageName,
+					fallback: chatCopy.isTyping,
+				})
+			);
 			setTypingStatusIsAi(isAiTyping);
 			window.clearTimeout(typingStatusTimerRef.current);
 			typingStatusTimerRef.current = window.setTimeout(() => {
