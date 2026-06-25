@@ -39,6 +39,8 @@ Checkout, payment, reservation, and dashboard routes are treated as private or n
 
 - Google Analytics and Facebook Pixel load from `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` / `NEXT_PUBLIC_FACEBOOK_PIXEL_ID`.
 - Standard conversion events are emitted for search, hotel views, add-to-cart, checkout start, leads, contact, chat, and reservation requests while preserving legacy custom event names.
+- Payment amount selection and payment button/order creation are tracked as `add_payment_info` / Meta `AddPaymentInfo`; successful browser payment completion remains `purchase` / Meta `Purchase`.
+- Backend Conversion API / Measurement Protocol dispatch is documented in `D:\JannatBooking\hotels_backend\docs\analytics-conversion-tracking-2026-06-25.md`.
 - The support widget supports query-param state such as `chat=open`, `chatName`, `chatContact`, `chatHotelId`, `chatHotelName`, `chatInquiry`, `chatDetails`, and `chatLanguage`.
 
 ## Verification

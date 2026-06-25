@@ -695,6 +695,21 @@ function JannatPayPalButtons({
 			compact
 		/>
 	);
+	const trackPaymentAttempt = (paymentSurface, pending = {}) => {
+		trackConversion(
+			"paymentClick",
+			{
+				transaction_id: pending.confirmation_number || undefined,
+				payment_type:
+					selectedPaymentOption === "acceptDeposit" ? "deposit" : "full",
+				payment_surface: paymentSurface,
+				checkout_context: "cart_checkout",
+				value: selectedSarAmount,
+				currency: "SAR",
+			},
+			["Payment Button Clicked"]
+		);
+	};
 	const suppressNextPaymentError = () => {
 		suppressPaymentErrorUntilRef.current = Date.now() + 4000;
 	};
@@ -864,6 +879,7 @@ function JannatPayPalButtons({
 					: "Full amount";
 		pending.invoice_id = pending.invoice_id || buildPayPalInvoiceId(pending.confirmation_number);
 		pendingRef.current.invoice_id = pending.invoice_id;
+		trackPaymentAttempt("paypal_card_button", pending);
 		const orderPayload = {
 			intent: "CAPTURE",
 			purchase_units: buildPurchaseUnits(optionText, pending),
@@ -907,6 +923,7 @@ function JannatPayPalButtons({
 				: "Full amount";
 		pending.invoice_id = pending.invoice_id || buildPayPalInvoiceId(pending.confirmation_number);
 		pendingRef.current.invoice_id = pending.invoice_id;
+		trackPaymentAttempt("apple_pay", pending);
 		const serverOrder = await createPayPalOrder({
 			intent: "CAPTURE",
 			purchase_units: buildPurchaseUnits(optionText, pending),

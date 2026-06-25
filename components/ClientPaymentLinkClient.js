@@ -685,6 +685,7 @@ function ClientPaymentButtons({
 			error.silent = true;
 			throw error;
 		}
+		trackPaymentAttempt("paypal_card_button");
 		const orderPayload = {
 			intent: "CAPTURE",
 			purchase_units: buildPurchaseUnits(),
@@ -712,6 +713,7 @@ function ClientPaymentButtons({
 			error.silent = true;
 			throw error;
 		}
+		trackPaymentAttempt("apple_pay");
 		const serverOrder = await createPayPalOrder({
 			intent: "CAPTURE",
 			purchase_units: buildPurchaseUnits(),
@@ -777,6 +779,22 @@ function ClientPaymentButtons({
 			selectedCurrency={selectedCurrency}
 		/>
 	);
+	const trackPaymentAttempt = (paymentSurface) => {
+		trackConversion(
+			"paymentClick",
+			{
+				transaction_id: reservation?.confirmation_number || reservation?._id,
+				content_name: hotelName,
+				content_type: "reservation_payment_link",
+				payment_type: selectedOption.paypalOption || selectedOption.id,
+				payment_surface: paymentSurface,
+				checkout_context: "client_payment_link",
+				value: selectedOption.sarAmount,
+				currency: "SAR",
+			},
+			["Client Payment Button Clicked"]
+		);
+	};
 
 	return (
 		<div className="paypal-box">
