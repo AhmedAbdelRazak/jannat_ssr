@@ -783,6 +783,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const guestTypingLocalRef = useRef(false);
 	const lastGuestSendAtRef = useRef(0);
 	const messagesContainerRef = useRef(null);
+	const supportRootRef = useRef(null);
 	const messagesEndRef = useRef(null);
 	const replyTextareaRef = useRef(null);
 	const replyInFlightRef = useRef(false);
@@ -879,6 +880,32 @@ export default function SupportWidget({ hotels = [] }) {
 			window.removeEventListener("orientationchange", refresh);
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!open || !mobileComposer) return undefined;
+		const root = supportRootRef.current;
+		const previousBodyOverflow = document.body.style.overflow;
+		const refreshViewportHeight = () => {
+			const height = window.visualViewport?.height || window.innerHeight;
+			if (root && height) {
+				root.style.setProperty("--support-visual-height", `${Math.max(320, Math.floor(height))}px`);
+			}
+		};
+		document.body.style.overflow = "hidden";
+		refreshViewportHeight();
+		window.visualViewport?.addEventListener("resize", refreshViewportHeight);
+		window.visualViewport?.addEventListener("scroll", refreshViewportHeight);
+		window.addEventListener("resize", refreshViewportHeight);
+		window.addEventListener("orientationchange", refreshViewportHeight);
+		return () => {
+			document.body.style.overflow = previousBodyOverflow;
+			root?.style.removeProperty("--support-visual-height");
+			window.visualViewport?.removeEventListener("resize", refreshViewportHeight);
+			window.visualViewport?.removeEventListener("scroll", refreshViewportHeight);
+			window.removeEventListener("resize", refreshViewportHeight);
+			window.removeEventListener("orientationchange", refreshViewportHeight);
+		};
+	}, [mobileComposer, open]);
 
 	useEffect(() => {
 		if (caseId || !pageHotel?._id) return;
@@ -1773,7 +1800,11 @@ export default function SupportWidget({ hotels = [] }) {
 	);
 
 	return (
-		<div className="support-root" dir={selectedChatLanguageMeta.rtl ? "rtl" : "ltr"}>
+		<div
+			className={`support-root${open ? " is-open" : ""}`}
+			dir={selectedChatLanguageMeta.rtl ? "rtl" : "ltr"}
+			ref={supportRootRef}
+		>
 			<button
 				className="support-button"
 				type="button"
@@ -2281,6 +2312,46 @@ export default function SupportWidget({ hotels = [] }) {
 					display: inline-flex;
 					align-items: center;
 					justify-content: center;
+					position: relative;
+					overflow: hidden;
+					border-color: rgba(143, 234, 255, 0.42);
+					background:
+						linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 34%),
+						linear-gradient(135deg, #183d68 0%, #117f88 54%, #0b8f6a 100%);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.28),
+						0 10px 20px rgba(7, 21, 38, 0.26),
+						0 0 0 1px rgba(143, 234, 255, 0.12);
+					transition:
+						transform 160ms ease,
+						filter 160ms ease,
+						box-shadow 160ms ease;
+				}
+
+				.support-close::before {
+					content: "";
+					position: absolute;
+					inset: 1px;
+					border-radius: inherit;
+					background: linear-gradient(135deg, rgba(255, 255, 255, 0.32), transparent 42%, rgba(255, 255, 255, 0.12) 58%, transparent 72%);
+					pointer-events: none;
+				}
+
+				.support-close svg {
+					position: relative;
+					z-index: 1;
+					stroke-width: 2.55;
+					filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
+				}
+
+				.support-close:hover,
+				.support-close:focus-visible {
+					transform: translateY(-1px);
+					filter: saturate(1.08);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.32),
+						0 12px 24px rgba(7, 21, 38, 0.3),
+						0 0 0 3px rgba(143, 234, 255, 0.18);
 				}
 
 				.start-form,
@@ -2952,6 +3023,10 @@ export default function SupportWidget({ hotels = [] }) {
 						bottom: 14px;
 					}
 
+					.support-root.is-open .support-button {
+						display: none;
+					}
+
 					.support-button {
 						width: 52px;
 						height: 52px;
@@ -2989,12 +3064,14 @@ export default function SupportWidget({ hotels = [] }) {
 
 					.support-panel {
 						position: fixed;
-						left: 12px;
-						right: 12px;
-						top: max(12px, env(safe-area-inset-top));
-						bottom: 72px;
-						width: auto;
-						max-height: none;
+						inset: 0;
+						bottom: auto;
+						width: 100vw;
+						height: var(--support-visual-height, 100dvh);
+						max-height: var(--support-visual-height, 100dvh);
+						border: 0;
+						border-radius: 0;
+						box-shadow: none;
 					}
 
 					.start-form,
@@ -3003,17 +3080,18 @@ export default function SupportWidget({ hotels = [] }) {
 					}
 
 					.support-head {
-						padding: 12px 12px;
-						gap: 8px;
+						min-height: 74px;
+						padding: calc(10px + env(safe-area-inset-top)) 14px 12px;
+						gap: 10px;
 					}
 
 					.support-head-actions {
-						gap: 6px;
+						gap: 16px;
 					}
 
 					.support-end-chat {
-						min-height: 34px;
-						padding: 0 9px;
+						min-height: 38px;
+						padding: 0 12px;
 					}
 
 					.support-end-chat span {
@@ -3023,6 +3101,13 @@ export default function SupportWidget({ hotels = [] }) {
 						white-space: nowrap;
 					}
 
+					.support-close {
+						width: 46px;
+						height: 46px;
+						border-radius: 14px;
+						flex: 0 0 auto;
+					}
+
 					.bubble {
 						max-width: 92%;
 					}
@@ -3030,7 +3115,7 @@ export default function SupportWidget({ hotels = [] }) {
 					.reply-form {
 						grid-template-columns: 40px minmax(0, 1fr) 44px;
 						gap: 6px;
-						padding: 10px;
+						padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
 					}
 
 					.emoji-toggle {
@@ -3132,13 +3217,14 @@ export default function SupportWidget({ hotels = [] }) {
 
 				@media (max-height: 760px) and (max-width: 640px) {
 					.support-panel {
-						top: max(10px, env(safe-area-inset-top));
-						bottom: 68px;
-						max-height: none;
+						top: 0;
+						bottom: auto;
+						height: var(--support-visual-height, 100dvh);
+						max-height: var(--support-visual-height, 100dvh);
 					}
 
 					.support-head {
-						padding: 12px 14px;
+						padding: calc(10px + env(safe-area-inset-top)) 14px 12px;
 					}
 
 					.start-form,
