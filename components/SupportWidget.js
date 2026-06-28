@@ -858,6 +858,16 @@ export default function SupportWidget({ hotels = [] }) {
 			),
 		[caseMeta, messages]
 	);
+	const latestQuickReplySet = useMemo(() => {
+		const index = messages.length - 1;
+		const message = index >= 0 ? messages[index] : null;
+		if (!message || messageSenderRole(message, form.contact) === "guest") {
+			return { index: -1, replies: [] };
+		}
+		const quickReplies = quickRepliesForMessage(message);
+		if (quickReplies.length) return { index, replies: quickReplies };
+		return { index: -1, replies: [] };
+	}, [messages, form.contact]);
 
 	useEffect(() => {
 		const refresh = () => setMobileComposer(isMobileComposerViewport());
@@ -1847,7 +1857,8 @@ export default function SupportWidget({ hotels = [] }) {
 									const showQuickReplies =
 										!isGuest &&
 										quickReplies.length > 0 &&
-										index === messages.length - 1;
+										index === messages.length - 1 &&
+										latestQuickReplySet.replies.length === 0;
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
 											<span>{sender}</span>
@@ -1873,6 +1884,21 @@ export default function SupportWidget({ hotels = [] }) {
 								{typingStatus && (typingStatusIsAi || !isGuestTypingLocal) ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
+							{!conversationEnded && latestQuickReplySet.replies.length > 0 ? (
+								<div className="quick-reply-tray" role="group" aria-label={chatCopy.quickReplies || "Quick replies"}>
+									{latestQuickReplySet.replies.map((quickReply) => (
+										<button
+											key={`${quickReply.action || quickReply.label}-${quickReply.value}`}
+											type="button"
+											className="quick-reply tray-action"
+											onClick={() => handleQuickReply(quickReply)}
+											disabled={busy}
+										>
+											{brandText(quickReply.label, isChatArabic)}
+										</button>
+									))}
+								</div>
+							) : null}
 							{conversationEnded ? null : (
 								<form className="reply-form" onSubmit={sendReply}>
 									<button
@@ -2625,6 +2651,30 @@ export default function SupportWidget({ hotels = [] }) {
 					font-size: 13px;
 					font-weight: 950;
 					cursor: pointer;
+				}
+
+				.quick-reply-tray {
+					flex: 0 0 auto;
+					display: flex;
+					flex-wrap: wrap;
+					gap: 8px;
+					padding: 10px 12px;
+					border-top: 1px solid var(--zad-border);
+					background: #f8fbff;
+					box-shadow: 0 -8px 18px rgba(12, 35, 58, 0.05);
+				}
+
+				.quick-reply.tray-action {
+					flex: 1 1 136px;
+					min-height: 40px;
+					border-color: rgba(11, 143, 106, 0.38);
+					background: linear-gradient(180deg, #ffffff 0%, #eefaf6 100%);
+					box-shadow: 0 8px 18px rgba(11, 143, 106, 0.1);
+				}
+
+				.quick-reply:disabled {
+					cursor: wait;
+					opacity: 0.62;
 				}
 
 				.typing-line {
