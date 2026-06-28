@@ -19,7 +19,8 @@ const JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
 const JANNAT_SUPPORTER_ID = "6553f1c6d06c5cea2f98a838";
 const SUPPORT_CHAT_STORAGE_KEY = "jannat_support_chat_state_v1";
 const SUPPORT_CHAT_STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const SUPPORT_SEND_TIMEOUT_MS = 10000;
+const SUPPORT_SEND_TIMEOUT_MS = 20000;
+const SUPPORT_SEND_VERIFY_TIMEOUT_MS = 7000;
 
 const brandText = (value = "", isArabic = false) =>
 	String(value || "")
@@ -385,6 +386,8 @@ const readResponseJson = async (response) => {
 		return {};
 	}
 };
+
+const wait = (ms = 0) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const supportRequestError = (message, status, code) => {
 	const error = new Error(message);
@@ -1514,6 +1517,36 @@ export default function SupportWidget({ hotels = [] }) {
 		const controller = new AbortController();
 		const timeout = window.setTimeout(() => controller.abort(), SUPPORT_SEND_TIMEOUT_MS);
 		replyAbortControllerRef.current = controller;
+		const verifySavedMessage = async () => {
+			for (let attempt = 0; attempt < 2; attempt += 1) {
+				if (attempt > 0) await wait(1200);
+				const verifyController = new AbortController();
+				const verifyTimeout = window.setTimeout(
+					() => verifyController.abort(),
+					SUPPORT_SEND_VERIFY_TIMEOUT_MS
+				);
+				try {
+					const res = await fetch(apiUrl(`/support-cases/client/${caseId}`), {
+						headers: { Accept: "application/json" },
+						signal: verifyController.signal,
+					});
+					const data = await readResponseJson(res);
+					if (!res.ok || !Array.isArray(data?.conversation)) continue;
+					const saved = data.conversation.some(
+						(message) => normalizedClientTag(message) === clientTag
+					);
+					if (!saved) continue;
+					setCaseMeta(data);
+					setMessages((current) => mergeConversationMessages(current, data.conversation || []));
+					return true;
+				} catch {
+					// The normal polling loop will keep trying; this check only prevents false failures.
+				} finally {
+					window.clearTimeout(verifyTimeout);
+				}
+			}
+			return false;
+		};
 		try {
 			const conversation = {
 				messageBy: {
@@ -1560,6 +1593,10 @@ export default function SupportWidget({ hotels = [] }) {
 				return;
 			}
 			if (isAbortError(err) && closeInFlightRef.current) {
+				return;
+			}
+			if (isAbortError(err) && (await verifySavedMessage())) {
+				setError("");
 				return;
 			}
 			setMessages((current) => current.filter((message) => messageKey(message) !== clientTag));
