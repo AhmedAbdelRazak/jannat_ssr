@@ -869,6 +869,15 @@ export default function SupportWidget({ hotels = [] }) {
 		if (quickReplies.length) return { index, replies: quickReplies };
 		return { index: -1, replies: [] };
 	}, [messages, form.contact]);
+	const latestAiResponderName = useMemo(() => {
+		for (let index = messages.length - 1; index >= 0; index -= 1) {
+			const message = messages[index];
+			if (messageSenderRole(message, form.contact) !== "guest") {
+				return String(message?.messageBy?.customerName || "").trim();
+			}
+		}
+		return "";
+	}, [messages, form.contact]);
 
 	useEffect(() => {
 		const refresh = () => setMobileComposer(isMobileComposerViewport());
@@ -885,21 +894,36 @@ export default function SupportWidget({ hotels = [] }) {
 		if (!open || !mobileComposer) return undefined;
 		const root = supportRootRef.current;
 		const previousBodyOverflow = document.body.style.overflow;
+		const previousHtmlOverflow = document.documentElement.style.overflow;
 		const refreshViewportHeight = () => {
-			const height = window.visualViewport?.height || window.innerHeight;
-			if (root && height) {
-				root.style.setProperty("--support-visual-height", `${Math.max(320, Math.floor(height))}px`);
-			}
+			if (!root) return;
+			const viewport = window.visualViewport;
+			const height = viewport?.height || window.innerHeight;
+			const width = viewport?.width || window.innerWidth;
+			const top = viewport?.offsetTop || 0;
+			const left = viewport?.offsetLeft || 0;
+			if (!height || !width) return;
+			root.style.setProperty("--support-visual-height", `${Math.max(320, Math.floor(height))}px`);
+			root.style.setProperty("--support-visual-width", `${Math.max(280, Math.floor(width))}px`);
+			root.style.setProperty("--support-visual-top", `${Math.max(0, Math.floor(top))}px`);
+			root.style.setProperty("--support-visual-left", `${Math.max(0, Math.floor(left))}px`);
 		};
 		document.body.style.overflow = "hidden";
+		document.documentElement.style.overflow = "hidden";
 		refreshViewportHeight();
+		const frame = window.requestAnimationFrame(refreshViewportHeight);
 		window.visualViewport?.addEventListener("resize", refreshViewportHeight);
 		window.visualViewport?.addEventListener("scroll", refreshViewportHeight);
 		window.addEventListener("resize", refreshViewportHeight);
 		window.addEventListener("orientationchange", refreshViewportHeight);
 		return () => {
 			document.body.style.overflow = previousBodyOverflow;
+			document.documentElement.style.overflow = previousHtmlOverflow;
+			window.cancelAnimationFrame(frame);
 			root?.style.removeProperty("--support-visual-height");
+			root?.style.removeProperty("--support-visual-width");
+			root?.style.removeProperty("--support-visual-top");
+			root?.style.removeProperty("--support-visual-left");
 			window.visualViewport?.removeEventListener("resize", refreshViewportHeight);
 			window.visualViewport?.removeEventListener("scroll", refreshViewportHeight);
 			window.removeEventListener("resize", refreshViewportHeight);
@@ -1332,7 +1356,7 @@ export default function SupportWidget({ hotels = [] }) {
 	}, [caseId, form.topic, openChatPanel]);
 
 	useEffect(() => {
-		if (!caseId || !open) return undefined;
+		if (!caseId || !open || conversationEnded) return undefined;
 		let cancelled = false;
 		const load = async () => {
 			try {
@@ -1363,10 +1387,10 @@ export default function SupportWidget({ hotels = [] }) {
 			cancelled = true;
 			clearInterval(timer);
 		};
-	}, [caseId, open, resetCaseState, chatCopy.chatClosed]);
+	}, [caseId, conversationEnded, open, resetCaseState, chatCopy.chatClosed]);
 
 	useEffect(() => {
-		if (!caseId || !open) return undefined;
+		if (!caseId || !open || conversationEnded) return undefined;
 		let mounted = true;
 		let socket = null;
 
@@ -1451,7 +1475,7 @@ export default function SupportWidget({ hotels = [] }) {
 			}
 			socketRef.current = null;
 		};
-	}, [caseId, caseMeta?.aiResponderName, form.name, open, resetCaseState, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping]);
+	}, [caseId, caseMeta?.aiResponderName, conversationEnded, form.name, open, resetCaseState, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping, languageName]);
 
 	const scrollToBottom = useCallback((behavior = "smooth") => {
 		const container = messagesContainerRef.current;
@@ -1502,7 +1526,7 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const emitTyping = (value) => {
 		const socket = socketRef.current;
-		if (!socket || !caseId) return;
+		if (!socket || !caseId || conversationEnded) return;
 		if (value) {
 			guestTypingLocalRef.current = true;
 			setIsGuestTypingLocal(true);
@@ -1520,6 +1544,25 @@ export default function SupportWidget({ hotels = [] }) {
 			setIsGuestTypingLocal(false);
 		}
 	};
+
+	const showLocalAiTyping = useCallback(() => {
+		if (!caseId || conversationEnded) return;
+		const typingName = caseMeta?.aiResponderName || latestAiResponderName || chatBrandName;
+		setTypingStatus(
+			typingStatusText({
+				name: typingName,
+				isAi: true,
+				languageName,
+				fallback: chatCopy.isTyping,
+			})
+		);
+		setTypingStatusIsAi(true);
+		window.clearTimeout(typingStatusTimerRef.current);
+		typingStatusTimerRef.current = window.setTimeout(() => {
+			setTypingStatus("");
+			setTypingStatusIsAi(false);
+		}, 2200);
+	}, [caseId, caseMeta?.aiResponderName, chatBrandName, chatCopy.isTyping, conversationEnded, languageName, latestAiResponderName]);
 
 	const handleReplyChange = (event) => {
 		setReply(event.target.value);
@@ -1604,6 +1647,7 @@ export default function SupportWidget({ hotels = [] }) {
 			setReply("");
 			setEmojiOpen(false);
 			emitTyping("");
+			showLocalAiTyping();
 			const res = await fetch(apiUrl(`/support-cases/client/${caseId}`), {
 				method: "PUT",
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -2688,21 +2732,57 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				.bubble p a {
-					color: #1d72e8;
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+					max-width: 100%;
+					min-height: 28px;
+					margin: 3px 2px;
+					padding: 4px 9px;
+					border: 1px solid rgba(29, 114, 232, 0.24);
+					border-radius: 999px;
+					color: #075dbf;
+					background:
+						linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 245, 255, 0.92)),
+						#eef7ff;
 					font-weight: 950;
-					text-decoration: underline;
-					text-decoration-thickness: 2px;
-					text-underline-offset: 2px;
+					text-decoration: none;
 					overflow-wrap: anywhere;
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.9),
+						0 5px 12px rgba(29, 114, 232, 0.11);
+					vertical-align: middle;
+				}
+
+				.bubble p a::after {
+					content: "";
+					width: 7px;
+					height: 7px;
+					flex: 0 0 auto;
+					border-top: 2px solid currentColor;
+					border-right: 2px solid currentColor;
+					transform: rotate(45deg);
 				}
 
 				.bubble p a:hover,
 				.bubble p a:focus-visible {
-					color: #075dbf;
+					color: #004b9b;
+					border-color: rgba(29, 114, 232, 0.42);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.95),
+						0 0 0 3px rgba(29, 114, 232, 0.11),
+						0 7px 16px rgba(29, 114, 232, 0.15);
 				}
 
 				.bubble.guest p a {
-					color: #8feaff;
+					color: #e9fbff;
+					border-color: rgba(143, 234, 255, 0.34);
+					background:
+						linear-gradient(180deg, rgba(143, 234, 255, 0.2), rgba(255, 255, 255, 0.08)),
+						rgba(255, 255, 255, 0.1);
+					box-shadow:
+						inset 0 1px rgba(255, 255, 255, 0.2),
+						0 5px 12px rgba(0, 0, 0, 0.12);
 				}
 
 				.quick-replies {
@@ -3064,9 +3144,11 @@ export default function SupportWidget({ hotels = [] }) {
 
 					.support-panel {
 						position: fixed;
-						inset: 0;
+						top: var(--support-visual-top, 0);
+						left: var(--support-visual-left, 0);
+						right: auto;
 						bottom: auto;
-						width: 100vw;
+						width: var(--support-visual-width, 100vw);
 						height: var(--support-visual-height, 100dvh);
 						max-height: var(--support-visual-height, 100dvh);
 						border: 0;
@@ -3217,8 +3299,11 @@ export default function SupportWidget({ hotels = [] }) {
 
 				@media (max-height: 760px) and (max-width: 640px) {
 					.support-panel {
-						top: 0;
+						top: var(--support-visual-top, 0);
+						left: var(--support-visual-left, 0);
+						right: auto;
 						bottom: auto;
+						width: var(--support-visual-width, 100vw);
 						height: var(--support-visual-height, 100dvh);
 						max-height: var(--support-visual-height, 100dvh);
 					}
