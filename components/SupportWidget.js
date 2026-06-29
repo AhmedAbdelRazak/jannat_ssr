@@ -764,6 +764,8 @@ export default function SupportWidget({ hotels = [] }) {
 	});
 	const [reply, setReply] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [sendingReplyCount, setSendingReplyCount] = useState(0);
+	const [closingChat, setClosingChat] = useState(false);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [typingStatus, setTypingStatus] = useState("");
@@ -787,7 +789,8 @@ export default function SupportWidget({ hotels = [] }) {
 	const messagesEndRef = useRef(null);
 	const replyTextareaRef = useRef(null);
 	const replyInFlightRef = useRef(false);
-	const replyAbortControllerRef = useRef(null);
+	const replyAbortControllersRef = useRef(new Set());
+	const pendingReplyFingerprintsRef = useRef(new Set());
 	const closeInFlightRef = useRef(false);
 	const generatedMessageRef = useRef("");
 	const messageManuallyEditedRef = useRef(false);
@@ -878,6 +881,14 @@ export default function SupportWidget({ hotels = [] }) {
 		}
 		return "";
 	}, [messages, form.contact]);
+	const sendingReply = sendingReplyCount > 0;
+	const abortPendingReplyRequests = useCallback(() => {
+		replyAbortControllersRef.current.forEach((controller) => controller.abort());
+		replyAbortControllersRef.current.clear();
+		pendingReplyFingerprintsRef.current.clear();
+		replyInFlightRef.current = false;
+		setSendingReplyCount(0);
+	}, []);
 
 	useEffect(() => {
 		const refresh = () => setMobileComposer(isMobileComposerViewport());
@@ -1218,11 +1229,11 @@ export default function SupportWidget({ hotels = [] }) {
 	const resetCaseState = useCallback(() => {
 		window.clearTimeout(typingStatusTimerRef.current);
 		window.clearTimeout(guestTypingTimerRef.current);
-		replyAbortControllerRef.current?.abort();
-		replyAbortControllerRef.current = null;
-		replyInFlightRef.current = false;
+		abortPendingReplyRequests();
 		closeInFlightRef.current = false;
 		clearStoredSupportChatState();
+		setBusy(false);
+		setClosingChat(false);
 		setCaseId("");
 		setCaseMeta(null);
 		setMessages([]);
@@ -1234,7 +1245,7 @@ export default function SupportWidget({ hotels = [] }) {
 		setConversationEnded(false);
 		setIsGuestTypingLocal(false);
 		guestTypingLocalRef.current = false;
-	}, []);
+	}, [abortPendingReplyRequests]);
 
 	useEffect(() => {
 		const applyQueryState = () => {
@@ -1588,15 +1599,20 @@ export default function SupportWidget({ hotels = [] }) {
 	const sendReply = async (event, overrideText = "", options = {}) => {
 		event?.preventDefault?.();
 		const messageText = String(overrideText || reply || "").trim();
-		if (!caseId || !messageText || replyInFlightRef.current) return;
+		if (!caseId || !messageText || closeInFlightRef.current || conversationEnded) return;
+		const pendingFingerprint = `${String(options.clientAction || "").trim()}|${normalizedMessageText(
+			messageText
+		)}`;
+		if (pendingReplyFingerprintsRef.current.has(pendingFingerprint)) return;
+		pendingReplyFingerprintsRef.current.add(pendingFingerprint);
 		replyInFlightRef.current = true;
-		setBusy(true);
+		setSendingReplyCount((current) => current + 1);
 		setError("");
 		setNotice("");
 		const clientTag = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 		const controller = new AbortController();
 		const timeout = window.setTimeout(() => controller.abort(), SUPPORT_SEND_TIMEOUT_MS);
-		replyAbortControllerRef.current = controller;
+		replyAbortControllersRef.current.add(controller);
 		const verifySavedMessage = async () => {
 			for (let attempt = 0; attempt < 2; attempt += 1) {
 				if (attempt > 0) await wait(1200);
@@ -1681,17 +1697,17 @@ export default function SupportWidget({ hotels = [] }) {
 				return;
 			}
 			setMessages((current) => current.filter((message) => messageKey(message) !== clientTag));
-			setReply(messageText);
+			setReply((current) => {
+				const draft = String(current || "").trim();
+				return draft ? `${messageText}\n${current}` : messageText;
+			});
 			setError(isAbortError(err) ? chatCopy.messageError : err.message || chatCopy.messageError);
 		} finally {
 			window.clearTimeout(timeout);
-			if (replyAbortControllerRef.current === controller) {
-				replyAbortControllerRef.current = null;
-			}
-			if (!closeInFlightRef.current) {
-				replyInFlightRef.current = false;
-				setBusy(false);
-			}
+			pendingReplyFingerprintsRef.current.delete(pendingFingerprint);
+			replyAbortControllersRef.current.delete(controller);
+			if (!replyAbortControllersRef.current.size) replyInFlightRef.current = false;
+			setSendingReplyCount((current) => Math.max(0, current - 1));
 		}
 	};
 
@@ -1710,7 +1726,7 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const handleQuickReply = (quickReply) => {
 		const value = String(quickReply?.value || quickReply?.label || "").trim();
-		if (!value || busy) return;
+		if (!value || closeInFlightRef.current || conversationEnded) return;
 		setReply("");
 		sendReply(null, value, { clientAction: quickReply?.action || "" });
 	};
@@ -1725,10 +1741,9 @@ export default function SupportWidget({ hotels = [] }) {
 	const endChat = () => {
 		if (!caseId || closeInFlightRef.current || ratingVisible) return;
 		const closingCaseId = caseId;
-		replyAbortControllerRef.current?.abort();
-		replyAbortControllerRef.current = null;
-		replyInFlightRef.current = false;
+		abortPendingReplyRequests();
 		closeInFlightRef.current = true;
+		setClosingChat(true);
 		setBusy(true);
 		setError("");
 		setConversationEnded(true);
@@ -1744,10 +1759,12 @@ export default function SupportWidget({ hotels = [] }) {
 					setMessages((current) => mergeConversationMessages(current, closedCase.conversation));
 				}
 				closeInFlightRef.current = false;
+				setClosingChat(false);
 				setBusy(false);
 			})
 			.catch((err) => {
 				closeInFlightRef.current = false;
+				setClosingChat(false);
 				setBusy(false);
 				setConversationEnded(false);
 				setRatingVisible(false);
@@ -1757,7 +1774,7 @@ export default function SupportWidget({ hotels = [] }) {
 	};
 
 	const closeChatWithRating = (selectedRating = null) => {
-		if (!caseId || busy || closeInFlightRef.current) return;
+		if (!caseId || closeInFlightRef.current) return;
 		const closingCaseId = caseId;
 		const previousState = {
 			caseMeta,
@@ -1769,6 +1786,7 @@ export default function SupportWidget({ hotels = [] }) {
 			ratingVisible,
 		};
 		closeInFlightRef.current = true;
+		setClosingChat(true);
 		setError("");
 		const payload = selectedRating ? { rating: selectedRating } : {};
 		const successNotice = selectedRating
@@ -1782,9 +1800,11 @@ export default function SupportWidget({ hotels = [] }) {
 			.then(requireClosedCase)
 			.then(() => {
 				closeInFlightRef.current = false;
+				setClosingChat(false);
 			})
 			.catch((err) => {
 				closeInFlightRef.current = false;
+				setClosingChat(false);
 				setCaseId(closingCaseId);
 				setCaseMeta(previousState.caseMeta);
 				setMessages(previousState.messages);
@@ -1870,11 +1890,11 @@ export default function SupportWidget({ hotels = [] }) {
 							{caseId ? (
 								<button
 									className={`support-end-chat${reservationFlowCompleted ? " is-ready" : ""}${
-										conversationEnded ? " is-ending" : ""
+										closingChat ? " is-ending" : ""
 									}`}
 									type="button"
 									onClick={endChat}
-									disabled={ratingVisible}
+									disabled={closingChat || ratingVisible}
 								>
 									<HeartHandshake size={15} />
 									<span>{chatCopy.endChat}</span>
@@ -1912,10 +1932,10 @@ export default function SupportWidget({ hotels = [] }) {
 										))}
 									</div>
 									<div className="rating-actions">
-										<button type="button" className="rating-submit" onClick={submitRating} disabled={busy}>
+										<button type="button" className="rating-submit" onClick={submitRating} disabled={closingChat}>
 											{chatCopy.submitRating || feedbackCopy.submitRating}
 										</button>
-										<button type="button" className="rating-skip" onClick={skipRating} disabled={busy}>
+										<button type="button" className="rating-skip" onClick={skipRating} disabled={closingChat}>
 											{chatCopy.skipRating || feedbackCopy.skipRating}
 										</button>
 									</div>
@@ -1946,7 +1966,7 @@ export default function SupportWidget({ hotels = [] }) {
 															type="button"
 															className="quick-reply"
 															onClick={() => handleQuickReply(quickReply)}
-															disabled={busy}
+															disabled={closingChat}
 														>
 															{brandText(quickReply.label, isChatArabic)}
 														</button>
@@ -1967,7 +1987,7 @@ export default function SupportWidget({ hotels = [] }) {
 											type="button"
 											className="quick-reply tray-action"
 											onClick={() => handleQuickReply(quickReply)}
-											disabled={busy}
+											disabled={closingChat}
 										>
 											{brandText(quickReply.label, isChatArabic)}
 										</button>
@@ -1975,7 +1995,11 @@ export default function SupportWidget({ hotels = [] }) {
 								</div>
 							) : null}
 							{conversationEnded ? null : (
-								<form className="reply-form" onSubmit={sendReply}>
+								<form
+									className={`reply-form${sendingReply ? " is-sending" : ""}`}
+									onSubmit={sendReply}
+									aria-busy={sendingReply}
+								>
 									<button
 										type="button"
 										className="emoji-toggle"
@@ -2011,7 +2035,7 @@ export default function SupportWidget({ hotels = [] }) {
 										inputMode="text"
 										spellCheck
 									/>
-									<button className="send-reply" type="submit" disabled={busy || !reply.trim()} aria-label="Send message">
+									<button className="send-reply" type="submit" disabled={closingChat || !reply.trim()} aria-label="Send message">
 										<Send size={18} />
 									</button>
 								</form>
