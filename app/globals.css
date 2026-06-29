@@ -1949,8 +1949,11 @@ html[dir="rtl"] .search-panel .search-field label {
 
 .native-select {
 	appearance: none;
+	display: block;
+	width: 100%;
 	padding: 0 34px 0 12px;
 	cursor: pointer;
+	line-height: 1.2;
 }
 
 html[dir="rtl"] .native-select {
@@ -3620,6 +3623,7 @@ html[dir="rtl"] .hotel-card-details-link svg {
 	box-shadow:
 		0 18px 42px rgba(15, 23, 42, 0.06),
 		inset 0 1px rgba(255, 255, 255, 0.82);
+	overflow: visible;
 }
 
 .results-head-copy {
@@ -3671,6 +3675,8 @@ html[dir="rtl"] .hotel-card-details-link svg {
 .results-head-actions {
 	align-content: start;
 	min-width: min(100%, 330px);
+	display: grid;
+	gap: 8px;
 }
 
 .results-head-actions .currency-control {
@@ -8469,6 +8475,37 @@ html[dir="rtl"] .summary-count {
 		flex-direction: column;
 	}
 
+	.results-head {
+		grid-template-columns: 1fr;
+		gap: 16px;
+		padding: 18px;
+	}
+
+	.results-head-actions {
+		width: 100%;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
+		align-items: stretch;
+	}
+
+	.results-date-pill,
+	.results-head-actions .currency-control {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.results-date-pill {
+		justify-content: center;
+		overflow: hidden;
+	}
+
+	.results-date-pill .ltr-value {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.hotel-room-date-panel {
 		width: 100%;
 		padding: 10px;
@@ -8849,7 +8886,7 @@ html[dir="rtl"] .summary-count {
 	}
 
 	.search-panel-row + .search-panel-row {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr;
 	}
 
 	.search-panel .search-field label {
@@ -8862,6 +8899,10 @@ html[dir="rtl"] .summary-count {
 
 	.search-submit-wrap {
 		grid-column: 1 / -1;
+	}
+
+	.results-head-actions {
+		grid-template-columns: 1fr;
 	}
 
 	.home-promo-section {
