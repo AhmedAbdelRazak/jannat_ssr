@@ -44,6 +44,8 @@
 
 html {
 	scroll-behavior: smooth;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
 }
 
 body {
@@ -9776,8 +9778,48 @@ html[dir="rtl"] .legal-hero p {
 		max-height: min(48vh, 348px);
 	}
 
+	.section-currency-control.currency-control.is-open,
+	.toolbar-currency-control.currency-control.is-open,
+	.results-currency-control.currency-control.is-open {
+		display: grid;
+		align-items: stretch;
+		width: 100%;
+		gap: 8px;
+		position: relative;
+		z-index: 95;
+	}
+
+	.section-currency-control .currency-menu,
+	.toolbar-currency-control .currency-menu,
+	.results-currency-control .currency-menu {
+		position: static;
+		inset: auto;
+		z-index: auto;
+		width: 100%;
+		min-width: 0;
+		max-width: none;
+		max-height: min(42vh, 320px);
+		margin-top: 0;
+		transform-origin: top center;
+	}
+
+	.section-currency-control .currency-menu::before,
+	.toolbar-currency-control .currency-menu::before,
+	.results-currency-control .currency-menu::before {
+		display: none;
+	}
+
 	.drawer-currency-control .currency-menu {
 		max-height: min(44vh, 332px);
+	}
+
+	.ant-picker-dropdown {
+		max-width: calc(100vw - 24px);
+	}
+
+	.ant-picker-dropdown .ant-picker-panel-container {
+		max-width: 100%;
+		overflow-x: auto;
 	}
 
 	.paypal-card-fields-row {
