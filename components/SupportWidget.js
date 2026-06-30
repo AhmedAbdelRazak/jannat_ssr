@@ -1753,7 +1753,7 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const handleQuickReply = (quickReply) => {
 		const value = String(quickReply?.value || quickReply?.label || "").trim();
-		if (!value || closeInFlightRef.current || conversationEnded) return;
+		if (!value || closeInFlightRef.current || conversationEnded || replyInFlightRef.current) return;
 		setReply("");
 		sendReply(null, value, { clientAction: quickReply?.action || "" });
 	};
@@ -1979,8 +1979,7 @@ export default function SupportWidget({ hotels = [] }) {
 									const showQuickReplies =
 										!isGuest &&
 										quickReplies.length > 0 &&
-										index === messages.length - 1 &&
-										latestQuickReplySet.replies.length === 0;
+										index === messages.length - 1;
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
 											<span>{sender}</span>
@@ -1993,7 +1992,7 @@ export default function SupportWidget({ hotels = [] }) {
 															type="button"
 															className="quick-reply"
 															onClick={() => handleQuickReply(quickReply)}
-															disabled={closingChat}
+															disabled={closingChat || sendingReply}
 														>
 															{brandText(quickReply.label, isChatArabic)}
 														</button>
@@ -2014,7 +2013,7 @@ export default function SupportWidget({ hotels = [] }) {
 											type="button"
 											className="quick-reply tray-action"
 											onClick={() => handleQuickReply(quickReply)}
-											disabled={closingChat}
+											disabled={closingChat || sendingReply}
 										>
 											{brandText(quickReply.label, isChatArabic)}
 										</button>
