@@ -1454,6 +1454,17 @@ export default function SupportWidget({ hotels = [] }) {
 			setTypingStatusIsAi(false);
 			setNotice("");
 		};
+		const onSupportCaseUpdated = (updatedCase = {}) => {
+			const updatedCaseId = String(updatedCase?._id || updatedCase?.caseId || "");
+			if (!updatedCaseId || updatedCaseId !== String(caseId)) return;
+			setCaseMeta(updatedCase);
+			if (Array.isArray(updatedCase.conversation)) {
+				setMessages((current) => mergeConversationMessages(current, updatedCase.conversation));
+			}
+			if (updatedCase.caseStatus === "closed") {
+				onCloseCase({ case: updatedCase, caseId: updatedCaseId });
+			}
+		};
 
 		const connectSocket = async () => {
 			const { io } = await import("socket.io-client");
@@ -1468,6 +1479,7 @@ export default function SupportWidget({ hotels = [] }) {
 			socket.on("typing", onTyping);
 			socket.on("stopTyping", onStopTyping);
 			socket.on("closeCase", onCloseCase);
+			socket.on("supportCaseUpdated", onSupportCaseUpdated);
 		};
 
 		connectSocket().catch((err) => console.error(err));
@@ -1482,6 +1494,7 @@ export default function SupportWidget({ hotels = [] }) {
 				socket.off("typing", onTyping);
 				socket.off("stopTyping", onStopTyping);
 				socket.off("closeCase", onCloseCase);
+				socket.off("supportCaseUpdated", onSupportCaseUpdated);
 				socket.disconnect();
 			}
 			socketRef.current = null;
