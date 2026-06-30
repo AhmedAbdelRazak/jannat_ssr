@@ -21,8 +21,9 @@ const SUPPORT_CHAT_STORAGE_KEY = "jannat_support_chat_state_v1";
 const SUPPORT_CHAT_STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SUPPORT_SEND_TIMEOUT_MS = 20000;
 const SUPPORT_SEND_VERIFY_TIMEOUT_MS = 7000;
-const LOCAL_AI_TYPING_DELAY_MS = 2300;
-const LOCAL_AI_TYPING_VISIBLE_MS = 7000;
+const LOCAL_AI_TYPING_DELAY_MS = 2000;
+const LOCAL_AI_TYPING_VISIBLE_MS = 8000;
+const LOCAL_GUEST_TYPING_IDLE_MS = 2000;
 
 const brandText = (value = "", isArabic = false) =>
 	String(value || "")
@@ -1421,7 +1422,10 @@ export default function SupportWidget({ hotels = [] }) {
 			const isAiTyping = data.isAi === true;
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && guestTypingLocalRef.current) return;
-			if (isAiTyping) window.clearTimeout(localAiTypingDelayTimerRef.current);
+			if (isAiTyping) {
+				window.clearTimeout(localAiTypingDelayTimerRef.current);
+				if (guestTypingLocalRef.current) return;
+			}
 			const typingName =
 				data.name || (isAiTyping && caseMeta?.aiResponderName) || chatBrandName;
 			setTypingStatus(
@@ -1437,11 +1441,13 @@ export default function SupportWidget({ hotels = [] }) {
 			typingStatusTimerRef.current = window.setTimeout(() => {
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
-			}, isAiTyping ? 7000 : 4500);
+			}, isAiTyping ? LOCAL_AI_TYPING_VISIBLE_MS : 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
-			window.clearTimeout(localAiTypingDelayTimerRef.current);
+			const isAiTyping = data.isAi === true;
+			if (!isAiTyping && data.name && data.name === form.name) return;
+			if (isAiTyping) window.clearTimeout(localAiTypingDelayTimerRef.current);
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 		};
@@ -1566,6 +1572,12 @@ export default function SupportWidget({ hotels = [] }) {
 		const socket = socketRef.current;
 		if (!socket || !caseId || conversationEnded) return;
 		if (value) {
+			window.clearTimeout(localAiTypingDelayTimerRef.current);
+			if (typingStatusIsAi) {
+				window.clearTimeout(typingStatusTimerRef.current);
+				setTypingStatus("");
+				setTypingStatusIsAi(false);
+			}
 			guestTypingLocalRef.current = true;
 			setIsGuestTypingLocal(true);
 			socket.emit("typing", { name: form.name || "Guest", caseId });
@@ -1574,7 +1586,7 @@ export default function SupportWidget({ hotels = [] }) {
 				socket.emit("stopTyping", { name: form.name || "Guest", caseId });
 				guestTypingLocalRef.current = false;
 				setIsGuestTypingLocal(false);
-			}, 1600);
+			}, LOCAL_GUEST_TYPING_IDLE_MS);
 		} else {
 			socket.emit("stopTyping", { name: form.name || "Guest", caseId });
 			window.clearTimeout(guestTypingTimerRef.current);
@@ -1588,7 +1600,7 @@ export default function SupportWidget({ hotels = [] }) {
 		window.clearTimeout(localAiTypingDelayTimerRef.current);
 		window.clearTimeout(typingStatusTimerRef.current);
 		localAiTypingDelayTimerRef.current = window.setTimeout(() => {
-			if (!caseId || conversationEnded) return;
+			if (!caseId || conversationEnded || guestTypingLocalRef.current) return;
 			const typingName = caseMeta?.aiResponderName || latestAiResponderName || chatBrandName;
 			setTypingStatus(
 				typingStatusText({
@@ -2007,7 +2019,7 @@ export default function SupportWidget({ hotels = [] }) {
 										</div>
 									);
 								})}
-								{typingStatus && (typingStatusIsAi || !isGuestTypingLocal) ? <div className="typing-line">{typingStatus}</div> : null}
+								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
 								<div ref={messagesEndRef} />
 							</div>
 							{!conversationEnded && latestQuickReplySet.replies.length > 0 ? (
