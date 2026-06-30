@@ -21,6 +21,8 @@ const SUPPORT_CHAT_STORAGE_KEY = "jannat_support_chat_state_v1";
 const SUPPORT_CHAT_STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SUPPORT_SEND_TIMEOUT_MS = 20000;
 const SUPPORT_SEND_VERIFY_TIMEOUT_MS = 7000;
+const LOCAL_AI_TYPING_DELAY_MS = 2300;
+const LOCAL_AI_TYPING_VISIBLE_MS = 7000;
 
 const brandText = (value = "", isArabic = false) =>
 	String(value || "")
@@ -778,6 +780,7 @@ export default function SupportWidget({ hotels = [] }) {
 	const [mobileComposer, setMobileComposer] = useState(false);
 	const socketRef = useRef(null);
 	const typingStatusTimerRef = useRef(null);
+	const localAiTypingDelayTimerRef = useRef(null);
 	const guestTypingTimerRef = useRef(null);
 	const chatStateHydratedRef = useRef(false);
 	const chatStateWriteReadyRef = useRef(false);
@@ -1228,6 +1231,7 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const resetCaseState = useCallback(() => {
 		window.clearTimeout(typingStatusTimerRef.current);
+		window.clearTimeout(localAiTypingDelayTimerRef.current);
 		window.clearTimeout(guestTypingTimerRef.current);
 		abortPendingReplyRequests();
 		closeInFlightRef.current = false;
@@ -1407,6 +1411,7 @@ export default function SupportWidget({ hotels = [] }) {
 
 		const onReceiveMessage = (message = {}) => {
 			if (message.caseId && String(message.caseId) !== String(caseId)) return;
+			window.clearTimeout(localAiTypingDelayTimerRef.current);
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 			setMessages((current) => mergeConversationMessages(current, [message]));
@@ -1416,6 +1421,7 @@ export default function SupportWidget({ hotels = [] }) {
 			const isAiTyping = data.isAi === true;
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && guestTypingLocalRef.current) return;
+			if (isAiTyping) window.clearTimeout(localAiTypingDelayTimerRef.current);
 			const typingName =
 				data.name || (isAiTyping && caseMeta?.aiResponderName) || chatBrandName;
 			setTypingStatus(
@@ -1435,6 +1441,7 @@ export default function SupportWidget({ hotels = [] }) {
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
+			window.clearTimeout(localAiTypingDelayTimerRef.current);
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 		};
@@ -1450,6 +1457,7 @@ export default function SupportWidget({ hotels = [] }) {
 			setConversationEnded(true);
 			setRatingVisible(true);
 			setEmojiOpen(false);
+			window.clearTimeout(localAiTypingDelayTimerRef.current);
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 			setNotice("");
@@ -1487,6 +1495,7 @@ export default function SupportWidget({ hotels = [] }) {
 		return () => {
 			mounted = false;
 			window.clearTimeout(typingStatusTimerRef.current);
+			window.clearTimeout(localAiTypingDelayTimerRef.current);
 			window.clearTimeout(guestTypingTimerRef.current);
 			if (socket) {
 				socket.emit("leaveRoom", { caseId });
@@ -1571,21 +1580,26 @@ export default function SupportWidget({ hotels = [] }) {
 
 	const showLocalAiTyping = useCallback(() => {
 		if (!caseId || conversationEnded) return;
-		const typingName = caseMeta?.aiResponderName || latestAiResponderName || chatBrandName;
-		setTypingStatus(
-			typingStatusText({
-				name: typingName,
-				isAi: true,
-				languageName,
-				fallback: chatCopy.isTyping,
-			})
-		);
-		setTypingStatusIsAi(true);
+		window.clearTimeout(localAiTypingDelayTimerRef.current);
 		window.clearTimeout(typingStatusTimerRef.current);
-		typingStatusTimerRef.current = window.setTimeout(() => {
-			setTypingStatus("");
-			setTypingStatusIsAi(false);
-		}, 2200);
+		localAiTypingDelayTimerRef.current = window.setTimeout(() => {
+			if (!caseId || conversationEnded) return;
+			const typingName = caseMeta?.aiResponderName || latestAiResponderName || chatBrandName;
+			setTypingStatus(
+				typingStatusText({
+					name: typingName,
+					isAi: true,
+					languageName,
+					fallback: chatCopy.isTyping,
+				})
+			);
+			setTypingStatusIsAi(true);
+			window.clearTimeout(typingStatusTimerRef.current);
+			typingStatusTimerRef.current = window.setTimeout(() => {
+				setTypingStatus("");
+				setTypingStatusIsAi(false);
+			}, LOCAL_AI_TYPING_VISIBLE_MS);
+		}, LOCAL_AI_TYPING_DELAY_MS);
 	}, [caseId, caseMeta?.aiResponderName, chatBrandName, chatCopy.isTyping, conversationEnded, languageName, latestAiResponderName]);
 
 	const handleReplyChange = (event) => {
