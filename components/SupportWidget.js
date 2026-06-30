@@ -1473,6 +1473,9 @@ export default function SupportWidget({ hotels = [] }) {
 				onCloseCase({ case: updatedCase, caseId: updatedCaseId });
 			}
 		};
+		const joinCurrentRoom = () => {
+			socket?.emit("joinRoom", { caseId });
+		};
 
 		const connectSocket = async () => {
 			const { io } = await import("socket.io-client");
@@ -1482,12 +1485,13 @@ export default function SupportWidget({ hotels = [] }) {
 				withCredentials: false,
 			});
 			socketRef.current = socket;
-			socket.emit("joinRoom", { caseId });
 			socket.on("receiveMessage", onReceiveMessage);
 			socket.on("typing", onTyping);
 			socket.on("stopTyping", onStopTyping);
 			socket.on("closeCase", onCloseCase);
 			socket.on("supportCaseUpdated", onSupportCaseUpdated);
+			socket.on("connect", joinCurrentRoom);
+			if (socket.connected) joinCurrentRoom();
 		};
 
 		connectSocket().catch((err) => console.error(err));
@@ -1504,6 +1508,7 @@ export default function SupportWidget({ hotels = [] }) {
 				socket.off("stopTyping", onStopTyping);
 				socket.off("closeCase", onCloseCase);
 				socket.off("supportCaseUpdated", onSupportCaseUpdated);
+				socket.off("connect", joinCurrentRoom);
 				socket.disconnect();
 			}
 			socketRef.current = null;
