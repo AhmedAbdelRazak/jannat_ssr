@@ -42,6 +42,10 @@ This document captures the implementation work completed while preparing the SSR
 - Follow-up on 2026-06-23: AI typing events are treated separately from guest
   typing events, so "Nadia is typing..." remains visible even if the guest is
   actively composing a reply.
+- Follow-up on 2026-06-30: the first public chat message now schedules the same
+  local AI typing fallback used by normal guest replies. This protects the first
+  "agent is typing..." window when a new support case is created and the socket
+  room joins a moment after the backend has already started processing.
 
 ## Checkout
 
