@@ -912,13 +912,16 @@ export default function SupportWidget({ hotels = [] }) {
 		[caseMeta, messages]
 	);
 	const latestQuickReplySet = useMemo(() => {
-		const index = messages.length - 1;
-		const message = index >= 0 ? messages[index] : null;
-		if (!message || messageSenderRole(message, form.contact) === "guest") {
+		for (let index = messages.length - 1; index >= 0; index -= 1) {
+			const message = messages[index];
+			if (!message) continue;
+			if (messageSenderRole(message, form.contact) === "guest") {
+				return { index: -1, replies: [] };
+			}
+			const quickReplies = quickRepliesForMessage(message);
+			if (quickReplies.length) return { index, replies: quickReplies };
 			return { index: -1, replies: [] };
 		}
-		const quickReplies = quickRepliesForMessage(message);
-		if (quickReplies.length) return { index, replies: quickReplies };
 		return { index: -1, replies: [] };
 	}, [messages, form.contact]);
 	const latestAiResponderName = useMemo(() => {
@@ -2102,10 +2105,10 @@ export default function SupportWidget({ hotels = [] }) {
 									const showQuickReplies =
 										!isGuest &&
 										quickReplies.length > 0 &&
-										index === messages.length - 1;
+										latestQuickReplySet.index === index;
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
-											<span>{sender}</span>
+											<span className="message-sender">{sender}</span>
 											<div className="message-content" dir="auto">
 												{renderMessageContent(text)}
 											</div>
@@ -2882,26 +2885,27 @@ export default function SupportWidget({ hotels = [] }) {
 					box-shadow: 0 10px 22px rgba(13, 53, 86, 0.18);
 				}
 
-				.bubble span {
+				.bubble > .message-sender {
 					display: block;
 					font-size: 11px;
 					font-weight: 950;
 					margin-bottom: 4px;
+					letter-spacing: 0;
 				}
 
-				.bubble.agent span {
+				.bubble.agent > .message-sender {
 					color: #0b8f6a;
 				}
 
-				.bubble.guest span {
+				.bubble.guest > .message-sender {
 					color: rgba(255, 255, 255, 0.86);
 				}
 
 				.bubble .message-content {
 					margin: 0;
 					display: block;
-					line-height: 1.5;
-					font-size: 14px;
+					line-height: 1.58;
+					font-size: 14.5px;
 					overflow-wrap: anywhere;
 					word-break: break-word;
 				}
@@ -2912,7 +2916,7 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				:global(.message-line + .message-line) {
-					margin-top: 3px;
+					margin-top: 4px;
 				}
 
 				:global(.message-break) {
@@ -2922,13 +2926,20 @@ export default function SupportWidget({ hotels = [] }) {
 
 				:global(.message-bullet) {
 					font-weight: 900;
-					color: inherit;
+					color: #0b8f6a;
+					display: inline;
+					margin-inline-end: 3px;
 				}
 
 				:global(.message-label),
 				.bubble .message-content :global(strong) {
 					font-weight: 950;
 					color: #0b765d;
+				}
+
+				:global(.message-label) {
+					display: inline;
+					padding-inline-end: 2px;
 				}
 
 				.bubble.guest :global(.message-label),
@@ -2994,19 +3005,35 @@ export default function SupportWidget({ hotels = [] }) {
 					display: flex;
 					flex-wrap: wrap;
 					gap: 8px;
-					margin-top: 10px;
+					margin-top: 11px;
 				}
 
 				.quick-reply {
 					min-height: 36px;
-					border: 1px solid rgba(11, 143, 106, 0.28);
-					border-radius: 999px;
-					padding: 0 13px;
+					border: 1px solid rgba(11, 143, 106, 0.26);
+					border-radius: 8px;
+					padding: 0 12px;
 					color: var(--zad-blue);
-					background: #fff;
+					background:
+						linear-gradient(180deg, #ffffff 0%, #f3faf8 100%),
+						#fff;
 					font-size: 13px;
 					font-weight: 950;
 					cursor: pointer;
+					line-height: 1.2;
+					white-space: normal;
+					transition:
+						transform 150ms ease,
+						border-color 150ms ease,
+						box-shadow 150ms ease,
+						background 150ms ease;
+				}
+
+				.quick-reply:hover,
+				.quick-reply:focus-visible {
+					transform: translateY(-1px);
+					border-color: rgba(11, 143, 106, 0.46);
+					box-shadow: 0 8px 18px rgba(11, 143, 106, 0.14);
 				}
 
 				.quick-reply-tray {
@@ -3014,17 +3041,21 @@ export default function SupportWidget({ hotels = [] }) {
 					display: flex;
 					flex-wrap: wrap;
 					gap: 8px;
-					padding: 10px 12px;
+					padding: 11px 12px;
 					border-top: 1px solid var(--zad-border);
-					background: #f8fbff;
-					box-shadow: 0 -8px 18px rgba(12, 35, 58, 0.05);
+					background:
+						linear-gradient(180deg, rgba(248, 252, 255, 0.98), rgba(241, 249, 247, 0.98)),
+						#f8fbff;
+					box-shadow: 0 -10px 22px rgba(12, 35, 58, 0.07);
 				}
 
 				.quick-reply.tray-action {
 					flex: 1 1 136px;
 					min-height: 40px;
 					border-color: rgba(11, 143, 106, 0.38);
-					background: linear-gradient(180deg, #ffffff 0%, #eefaf6 100%);
+					background:
+						linear-gradient(180deg, #ffffff 0%, #ecfaf5 100%),
+						#fff;
 					box-shadow: 0 8px 18px rgba(11, 143, 106, 0.1);
 				}
 
@@ -3397,6 +3428,17 @@ export default function SupportWidget({ hotels = [] }) {
 
 					.bubble {
 						max-width: 92%;
+					}
+
+					.quick-reply-tray {
+						padding: 9px 10px;
+						gap: 7px;
+					}
+
+					.quick-reply.tray-action {
+						flex: 1 1 calc(50% - 7px);
+						min-width: 0;
+						min-height: 42px;
 					}
 
 					.reply-form {
