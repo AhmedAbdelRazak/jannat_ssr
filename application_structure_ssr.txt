@@ -548,6 +548,9 @@ Production Cutover State
   - If the guest moves to another SSR route while the chat is open, the widget
     restores the same case and keeps `chat=open` / `chatLanguage` URL state in
     sync with the new route.
+  - 2026-06-30 guard: stored chat state is only auto-restored when it still
+    matches the current single-hotel page. The home page clears stale stored
+    chat cases so old/deleted cases cannot reopen as a blank mobile chat shell.
   - Manual close with no case clears the stored state. Closed/rated cases clear
     stored state through the existing reset path. Conversation transcripts are
     still loaded from the backend by case id; they are not stored in

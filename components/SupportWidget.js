@@ -465,6 +465,11 @@ const singleHotelSlugFromPathname = (pathname = "") => {
 	return match ? normalizeHotelSlug(match[1]).toLowerCase() : "";
 };
 
+const isHomePathname = (pathname = "") => {
+	const normalized = String(pathname || "/").replace(/\/+$/, "") || "/";
+	return normalized === "/";
+};
+
 const hotelSlugKey = (hotel = {}) =>
 	normalizeHotelSlug(slugifyHotel(hotel?.hotelName || "")).toLowerCase();
 
@@ -1305,9 +1310,38 @@ export default function SupportWidget({ hotels = [] }) {
 			const storedState = readStoredSupportChatState();
 			const params = new URLSearchParams(window.location.search || "");
 			const hasChatParam = params.has(CHAT_OPEN_PARAM);
-			const shouldOpen = queryState.isOpen || (!hasChatParam && storedState?.open === true);
+			const queryHotelId = String(queryState.hotelId || "").trim();
+			const storedForm = storedState?.form || {};
+			const storedHotelId = String(storedForm.hotelId || "").trim();
+			const pageHotelId = String(pageHotel?._id || "").trim();
+			const storedMatchesPageHotel = Boolean(
+				pageHotelId && storedHotelId && storedHotelId === pageHotelId
+			);
+			const queryMatchesStoredHotel = Boolean(
+				queryState.isOpen && queryHotelId && storedHotelId && queryHotelId === storedHotelId
+			);
+			const canRestoreStoredOpen =
+				!hasChatParam && storedState?.open === true && storedMatchesPageHotel;
+			const shouldOpen = queryState.isOpen || canRestoreStoredOpen;
+			const canUseStoredState = Boolean(
+				canRestoreStoredOpen ||
+					queryMatchesStoredHotel ||
+					(queryState.isOpen && !queryHotelId && storedMatchesPageHotel)
+			);
+			const shouldClearStaleStoredState = Boolean(
+				storedState &&
+					!queryState.isOpen &&
+					(storedState.open === true || storedState.caseId) &&
+					(isHomePathname(pathname) ||
+						(pageHotelId && storedHotelId && storedHotelId !== pageHotelId))
+			);
+			if (shouldClearStaleStoredState) {
+				clearStoredSupportChatState();
+			}
 			const queryLanguage = normalizeChatLanguage(queryState.language);
-			const storedLanguage = normalizeChatLanguage(storedState?.chatLanguage);
+			const storedLanguage = canUseStoredState
+				? normalizeChatLanguage(storedState?.chatLanguage)
+				: "";
 			setOpen((current) => (current === shouldOpen ? current : shouldOpen));
 			setChatLanguage((current) => {
 				if (queryLanguage) return current === queryLanguage ? current : queryLanguage;
@@ -1315,9 +1349,7 @@ export default function SupportWidget({ hotels = [] }) {
 				if (storedLanguage) return current === storedLanguage ? current : storedLanguage;
 				return current === siteDefaultChatLanguage ? current : siteDefaultChatLanguage;
 			});
-			if (!caseId && storedState?.caseId) {
-				const queryHotelId = String(queryState.hotelId || "").trim();
-				const storedHotelId = String(storedState?.form?.hotelId || "").trim();
+			if (!caseId && storedState?.caseId && canUseStoredState) {
 				const explicitDifferentHotel =
 					queryState.isOpen && queryHotelId && storedHotelId && queryHotelId !== storedHotelId;
 				if (!explicitDifferentHotel) {
@@ -1328,21 +1360,21 @@ export default function SupportWidget({ hotels = [] }) {
 			}
 			chatStateHydratedRef.current = true;
 			if (!shouldOpen || caseId) return;
-			const storedForm = storedState?.form || {};
+			const usableStoredForm = canUseStoredState ? storedForm : {};
 			setForm((current) => ({
 				...current,
-				name: queryState.name || storedForm.name || current.name,
-				contact: queryState.contact || storedForm.contact || current.contact,
-				hotelId: queryState.hotelId || storedForm.hotelId || current.hotelId,
-				hotelName: queryState.hotelName || storedForm.hotelName || current.hotelName,
-				topic: queryState.inquiry || storedForm.topic || current.topic || "reserve_room",
-				message: queryState.inquiryDetails || storedForm.message || current.message,
+				name: queryState.name || usableStoredForm.name || current.name,
+				contact: queryState.contact || usableStoredForm.contact || current.contact,
+				hotelId: queryState.hotelId || usableStoredForm.hotelId || current.hotelId,
+				hotelName: queryState.hotelName || usableStoredForm.hotelName || current.hotelName,
+				topic: queryState.inquiry || usableStoredForm.topic || current.topic || "reserve_room",
+				message: queryState.inquiryDetails || usableStoredForm.message || current.message,
 			}));
 		};
 		applyQueryState();
 		window.addEventListener("popstate", applyQueryState);
 		return () => window.removeEventListener("popstate", applyQueryState);
-	}, [caseId, pathname, siteDefaultChatLanguage]);
+	}, [caseId, pageHotel?._id, pathname, siteDefaultChatLanguage]);
 
 	useEffect(() => {
 		if (!chatStateHydratedRef.current) return;
@@ -1425,6 +1457,14 @@ export default function SupportWidget({ hotels = [] }) {
 			try {
 				const res = await fetch(apiUrl(`/support-cases/client/${caseId}`));
 				const data = await res.json();
+				if (!res.ok || data?.error) {
+					if (!cancelled && [400, 404, 410].includes(Number(res.status))) {
+						resetCaseState();
+						setOpen(false);
+						writeChatQuery({}, { close: true, clearFields: true });
+					}
+					return;
+				}
 				if (!cancelled && data?.caseStatus === "closed") {
 					setCaseMeta(data);
 					if (Array.isArray(data?.conversation)) {
@@ -1450,7 +1490,7 @@ export default function SupportWidget({ hotels = [] }) {
 			cancelled = true;
 			clearInterval(timer);
 		};
-	}, [caseId, conversationEnded, open, resetCaseState, chatCopy.chatClosed]);
+	}, [caseId, conversationEnded, open, resetCaseState, chatCopy.chatClosed, writeChatQuery]);
 
 	useEffect(() => {
 		if (!caseId || !open || conversationEnded) return undefined;

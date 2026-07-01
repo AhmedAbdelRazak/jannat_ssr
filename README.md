@@ -42,6 +42,7 @@ Checkout, payment, reservation, and dashboard routes are treated as private or n
 - Payment amount selection and payment button/order creation are tracked as `add_payment_info` / Meta `AddPaymentInfo`; successful browser payment completion remains `purchase` / Meta `Purchase`.
 - Backend Conversion API / Measurement Protocol dispatch is documented in `D:\JannatBooking\hotels_backend\docs\analytics-conversion-tracking-2026-06-25.md`.
 - The support widget supports query-param state such as `chat=open`, `chatName`, `chatContact`, `chatHotelId`, `chatHotelName`, `chatInquiry`, `chatDetails`, and `chatLanguage`.
+- Stored chat state is only auto-restored when it still belongs to the current single-hotel page. Visiting the home page clears stale stored chat cases so a deleted/old case cannot reopen as a blank mobile chat shell.
 - Chat message sends use optimistic rendering with a unique `clientTag`. If a mobile send times out, the widget re-fetches the case and verifies that tag before showing an error, preventing false "message failed" notices when the backend saved the message slightly after the request timeout.
 
 ## Verification
