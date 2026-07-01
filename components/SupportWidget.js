@@ -1459,9 +1459,11 @@ export default function SupportWidget({ hotels = [] }) {
 
 		const onReceiveMessage = (message = {}) => {
 			if (message.caseId && String(message.caseId) !== String(caseId)) return;
-			window.clearTimeout(localAiTypingDelayTimerRef.current);
-			setTypingStatus("");
-			setTypingStatusIsAi(false);
+			if (message.isAi === true) {
+				window.clearTimeout(localAiTypingDelayTimerRef.current);
+				setTypingStatus("");
+				setTypingStatusIsAi(false);
+			}
 			setMessages((current) => mergeConversationMessages(current, [message]));
 		};
 		const onTyping = (data = {}) => {
@@ -1494,6 +1496,7 @@ export default function SupportWidget({ hotels = [] }) {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
 			const isAiTyping = data.isAi === true;
 			if (!isAiTyping && data.name && data.name === form.name) return;
+			if (!isAiTyping && !data.name) return;
 			if (isAiTyping) window.clearTimeout(localAiTypingDelayTimerRef.current);
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
