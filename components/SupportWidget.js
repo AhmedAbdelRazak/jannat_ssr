@@ -716,7 +716,7 @@ const renderFormattedText = (text = "", keyPrefix = "text") =>
 			return bold ? <strong key={`${keyPrefix}-bold-${index}`}>{bold[1]}</strong> : part;
 		});
 
-const renderMessageWithLinks = (text = "") => {
+const renderMessageWithLinks = (text = "", keyPrefix = "link") => {
 	const safeText = typeof text === "string" ? text : "";
 	if (!safeText) return null;
 	const linkRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s]+)/g;
@@ -724,7 +724,7 @@ const renderMessageWithLinks = (text = "") => {
 		const markdown = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
 		if (markdown) {
 			return (
-				<a key={index} href={markdown[2]} target="_blank" rel="noopener noreferrer">
+				<a key={`${keyPrefix}-markdown-${index}`} href={markdown[2]} target="_blank" rel="noopener noreferrer">
 					{readableLinkLabel(markdown[2], markdown[1])}
 				</a>
 			);
@@ -734,15 +734,55 @@ const renderMessageWithLinks = (text = "") => {
 			const href = match?.[1] || part;
 			const suffix = match?.[2] || "";
 			return [
-				<a key={`link-${index}`} href={href} target="_blank" rel="noopener noreferrer">
+				<a key={`${keyPrefix}-url-${index}`} href={href} target="_blank" rel="noopener noreferrer">
 					{readableLinkLabel(href)}
 				</a>,
-				suffix ? <span key={`link-suffix-${index}`}>{suffix}</span> : null,
+				suffix ? <span key={`${keyPrefix}-suffix-${index}`}>{suffix}</span> : null,
 			];
 		}
-		return renderFormattedText(part, `part-${index}`);
+		return renderFormattedText(part, `${keyPrefix}-part-${index}`);
 	});
 };
+
+const renderMessageLine = (line = "", index = 0) => {
+	const text = String(line || "");
+	if (!text.trim()) {
+		return <span key={`line-break-${index}`} className="message-break" aria-hidden="true" />;
+	}
+	const bulletMatch = text.match(/^(\s*(?:[-*•]|\d+[.)]|[٠-٩]+[.)])\s+)(.+)$/u);
+	const bullet = bulletMatch?.[1] || "";
+	const body = bulletMatch?.[2] || text;
+	const labelMatch = body.match(/^([^:：]{1,42})\s*[:：]\s*(.+)$/u);
+	const label = String(labelMatch?.[1] || "").trim();
+	const value = String(labelMatch?.[2] || "");
+	const trimmedBody = body.trim();
+	const canStyleLabel =
+		label &&
+		value.trim() &&
+		/[\p{L}]/u.test(label) &&
+		!/https?:\/\//i.test(label) &&
+		!/^https?:\/\//i.test(trimmedBody) &&
+		!/^\[[^\]]+\]\(https?:\/\//i.test(trimmedBody);
+
+	return (
+		<span key={`line-${index}`} className="message-line">
+			{bullet ? <span className="message-bullet">{bullet}</span> : null}
+			{canStyleLabel ? (
+				<>
+					<strong className="message-label">{label}:</strong>{" "}
+					{renderMessageWithLinks(value, `line-${index}-value`)}
+				</>
+			) : (
+				renderMessageWithLinks(body, `line-${index}`)
+			)}
+		</span>
+	);
+};
+
+const renderMessageContent = (text = "") =>
+	String(text || "")
+		.split(/\r?\n/)
+		.map((line, index) => renderMessageLine(line, index));
 
 const typingStatusText = ({ name, isAi, languageName, fallback }) => {
 	const typingName = String(name || "").trim();
@@ -2066,7 +2106,9 @@ export default function SupportWidget({ hotels = [] }) {
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
 											<span>{sender}</span>
-											<p dir="auto">{renderMessageWithLinks(text)}</p>
+											<div className="message-content" dir="auto">
+												{renderMessageContent(text)}
+											</div>
 											{showQuickReplies ? (
 												<div className="quick-replies">
 													{quickReplies.map((quickReply) => (
@@ -2855,16 +2897,46 @@ export default function SupportWidget({ hotels = [] }) {
 					color: rgba(255, 255, 255, 0.86);
 				}
 
-				.bubble p {
+				.bubble .message-content {
 					margin: 0;
-					white-space: pre-wrap;
-					line-height: 1.45;
+					display: block;
+					line-height: 1.5;
 					font-size: 14px;
 					overflow-wrap: anywhere;
 					word-break: break-word;
 				}
 
-				.bubble p a {
+				:global(.message-line) {
+					display: block;
+					white-space: pre-wrap;
+				}
+
+				:global(.message-line + .message-line) {
+					margin-top: 3px;
+				}
+
+				:global(.message-break) {
+					display: block;
+					height: 7px;
+				}
+
+				:global(.message-bullet) {
+					font-weight: 900;
+					color: inherit;
+				}
+
+				:global(.message-label),
+				.bubble .message-content :global(strong) {
+					font-weight: 950;
+					color: #0b765d;
+				}
+
+				.bubble.guest :global(.message-label),
+				.bubble.guest .message-content :global(strong) {
+					color: #ffffff;
+				}
+
+				.bubble .message-content :global(a) {
 					display: inline-flex;
 					align-items: center;
 					gap: 6px;
@@ -2887,7 +2959,7 @@ export default function SupportWidget({ hotels = [] }) {
 					vertical-align: middle;
 				}
 
-				.bubble p a::after {
+				.bubble .message-content :global(a)::after {
 					content: "";
 					width: 7px;
 					height: 7px;
@@ -2897,8 +2969,8 @@ export default function SupportWidget({ hotels = [] }) {
 					transform: rotate(45deg);
 				}
 
-				.bubble p a:hover,
-				.bubble p a:focus-visible {
+				.bubble .message-content :global(a:hover),
+				.bubble .message-content :global(a:focus-visible) {
 					color: #004b9b;
 					border-color: rgba(29, 114, 232, 0.42);
 					box-shadow:
@@ -2907,7 +2979,7 @@ export default function SupportWidget({ hotels = [] }) {
 						0 7px 16px rgba(29, 114, 232, 0.15);
 				}
 
-				.bubble.guest p a {
+				.bubble.guest .message-content :global(a) {
 					color: #e9fbff;
 					border-color: rgba(143, 234, 255, 0.34);
 					background:
