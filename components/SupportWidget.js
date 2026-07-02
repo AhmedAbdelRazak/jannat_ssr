@@ -779,10 +779,45 @@ const renderMessageLine = (line = "", index = 0) => {
 	);
 };
 
+const renderMessageLinePolished = (line = "", index = 0) => {
+	const text = String(line || "");
+	if (!text.trim()) {
+		return <span key={`line-break-${index}`} className="message-break" aria-hidden="true" />;
+	}
+	const bulletMatch = text.match(/^(\s*(?:[-*\u2022]|\d+[.)]|[\u0660-\u0669]+[.)])\s+)(.+)$/u);
+	const bullet = bulletMatch?.[1] || "";
+	const body = bulletMatch?.[2] || text;
+	const labelMatch = body.match(/^([^:\uFF1A]{1,42})\s*[:\uFF1A]\s*(.+)$/u);
+	const label = String(labelMatch?.[1] || "").trim();
+	const value = String(labelMatch?.[2] || "");
+	const trimmedBody = body.trim();
+	const canStyleLabel =
+		label &&
+		value.trim() &&
+		/[\p{L}]/u.test(label) &&
+		!/https?:\/\//i.test(label) &&
+		!/^https?:\/\//i.test(trimmedBody) &&
+		!/^\[[^\]]+\]\(https?:\/\//i.test(trimmedBody);
+
+	return (
+		<span key={`line-${index}`} className={`message-line${bullet ? " has-bullet" : ""}`}>
+			{bullet ? <span className="message-bullet">{bullet}</span> : null}
+			{canStyleLabel ? (
+				<>
+					<strong className="message-label">{label}:</strong>{" "}
+					{renderMessageWithLinks(value, `line-${index}-value`)}
+				</>
+			) : (
+				renderMessageWithLinks(body, `line-${index}`)
+			)}
+		</span>
+	);
+};
+
 const renderMessageContent = (text = "") =>
 	String(text || "")
 		.split(/\r?\n/)
-		.map((line, index) => renderMessageLine(line, index));
+		.map((line, index) => renderMessageLinePolished(line, index));
 
 const typingStatusText = ({ name, isAi, languageName, fallback }) => {
 	const typingName = String(name || "").trim();
@@ -2913,6 +2948,10 @@ export default function SupportWidget({ hotels = [] }) {
 				:global(.message-line) {
 					display: block;
 					white-space: pre-wrap;
+				}
+
+				:global(.message-line.has-bullet) {
+					padding-inline-start: 2px;
 				}
 
 				:global(.message-line + .message-line) {
