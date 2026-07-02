@@ -834,6 +834,13 @@ const renderMessageLinePolished = (line = "", index = 0) => {
 	if (!text.trim()) {
 		return <span key={`line-break-${index}`} className="message-break" aria-hidden="true" />;
 	}
+	if (
+		/^[-*\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB\u25A0\u25A1\u25B8\u25B6\u279C\u27A1]$/.test(
+			text.trim()
+		)
+	) {
+		return null;
+	}
 	const bulletMatch = text.match(
 		/^(\s*(?:[-*\u2022\u2023\u25E6\u2043\u2219]|\d+[.)]|[\u0660-\u0669]+[.)]|[\u2705\u2611\u2713\u2714\u25AA\u25AB\u25CF\u25CB\u25A0\u25A1\u25B8\u25B6\u279C\u27A1]\uFE0F?|[\u{1F7E2}-\u{1F7EB}]|[\u{1F539}-\u{1F53C}]|\u{1F449})\s+)(.+)$/u
 	);
@@ -2202,15 +2209,23 @@ export default function SupportWidget({ hotels = [] }) {
 									const text = brandText(message?.message || "", isChatArabic);
 									const isGuest = messageSenderRole(message, form.contact) === "guest";
 									const messageDirection = messageTextDirection(text);
+									const bubbleDirection =
+										messageDirection === "auto" ? (isChatArabic ? "rtl" : "ltr") : messageDirection;
 									const quickReplies = quickRepliesForMessage(message);
 									const showQuickReplies =
 										!isGuest &&
 										quickReplies.length > 0 &&
 										latestQuickReplySet.index === index;
 									return (
-										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
-											<span className="message-sender">{sender}</span>
-											<div className="message-content" dir={messageDirection}>
+										<div
+											className={`bubble ${isGuest ? "guest" : "agent"}`}
+											dir={bubbleDirection}
+											key={`${index}-${messageKey(message)}`}
+										>
+											<span className="message-sender" dir={messageTextDirection(sender)}>
+												{sender}
+											</span>
+											<div className="message-content" dir={bubbleDirection}>
 												{renderMessageContent(text)}
 											</div>
 											{showQuickReplies ? (
@@ -2992,6 +3007,8 @@ export default function SupportWidget({ hotels = [] }) {
 					font-weight: 950;
 					margin-bottom: 4px;
 					letter-spacing: 0;
+					text-align: start;
+					unicode-bidi: isolate;
 				}
 
 				.bubble.agent > .message-sender {
