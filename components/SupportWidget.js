@@ -784,7 +784,9 @@ const renderMessageLinePolished = (line = "", index = 0) => {
 	if (!text.trim()) {
 		return <span key={`line-break-${index}`} className="message-break" aria-hidden="true" />;
 	}
-	const bulletMatch = text.match(/^(\s*(?:[-*\u2022]|\d+[.)]|[\u0660-\u0669]+[.)])\s+)(.+)$/u);
+	const bulletMatch = text.match(
+		/^(\s*(?:[-*\u2022\u2023\u25E6\u2043\u2219]|\d+[.)]|[\u0660-\u0669]+[.)]|[\u2705\u2611\u2713\u2714\u25AA\u25AB\u25CF\u25CB\u25A0\u25A1\u25B8\u25B6\u279C\u27A1]\uFE0F?|[\u{1F7E2}-\u{1F7EB}]|[\u{1F539}-\u{1F53C}]|\u{1F449})\s+)(.+)$/u
+	);
 	const bullet = bulletMatch?.[1] || "";
 	const body = bulletMatch?.[2] || text;
 	const labelMatch = body.match(/^([^:\uFF1A]{1,42})\s*[:\uFF1A]\s*(.+)$/u);
@@ -801,15 +803,17 @@ const renderMessageLinePolished = (line = "", index = 0) => {
 
 	return (
 		<span key={`line-${index}`} className={`message-line${bullet ? " has-bullet" : ""}`}>
-			{bullet ? <span className="message-bullet">{bullet}</span> : null}
-			{canStyleLabel ? (
-				<>
-					<strong className="message-label">{label}:</strong>{" "}
-					{renderMessageWithLinks(value, `line-${index}-value`)}
-				</>
-			) : (
-				renderMessageWithLinks(body, `line-${index}`)
-			)}
+			{bullet ? <span className="message-bullet">{bullet.trim()}</span> : null}
+			<span className="message-body">
+				{canStyleLabel ? (
+					<>
+						<strong className="message-label">{label}:</strong>{" "}
+						{renderMessageWithLinks(value, `line-${index}-value`)}
+					</>
+				) : (
+					renderMessageWithLinks(body, `line-${index}`)
+				)}
+			</span>
 		</span>
 	);
 };
@@ -2943,31 +2947,57 @@ export default function SupportWidget({ hotels = [] }) {
 					font-size: 14.5px;
 					overflow-wrap: anywhere;
 					word-break: break-word;
+					text-align: start;
+					unicode-bidi: plaintext;
 				}
 
 				:global(.message-line) {
 					display: block;
 					white-space: pre-wrap;
+					max-width: 100%;
+					text-align: start;
+					unicode-bidi: plaintext;
 				}
 
 				:global(.message-line.has-bullet) {
-					padding-inline-start: 2px;
+					display: grid;
+					grid-template-columns: auto minmax(0, 1fr);
+					align-items: start;
+					gap: 7px;
+					padding-inline-start: 0;
+				}
+
+				:global(.message-body) {
+					min-width: 0;
+					display: inline;
+					white-space: pre-wrap;
+					overflow-wrap: anywhere;
+					word-break: break-word;
+					unicode-bidi: plaintext;
 				}
 
 				:global(.message-line + .message-line) {
-					margin-top: 4px;
+					margin-top: 5px;
 				}
 
 				:global(.message-break) {
 					display: block;
-					height: 7px;
+					height: 8px;
 				}
 
 				:global(.message-bullet) {
 					font-weight: 900;
 					color: #0b8f6a;
-					display: inline;
-					margin-inline-end: 3px;
+					display: inline-flex;
+					align-items: flex-start;
+					justify-content: center;
+					min-width: 1.1em;
+					line-height: 1.55;
+					margin-inline-end: 0;
+				}
+
+				.bubble.guest :global(.message-bullet) {
+					color: #ffffff;
 				}
 
 				:global(.message-label),
