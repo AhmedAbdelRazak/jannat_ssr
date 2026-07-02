@@ -3057,7 +3057,17 @@ export default function SupportWidget({ hotels = [] }) {
 				}
 
 				:global(.message-line.has-bullet[dir="rtl"]) {
-					grid-template-columns: auto minmax(0, 1fr);
+					grid-template-columns: minmax(0, 1fr) auto;
+				}
+
+				:global(.message-line.has-bullet[dir="rtl"] .message-bullet) {
+					grid-column: 2;
+					grid-row: 1;
+				}
+
+				:global(.message-line.has-bullet[dir="rtl"] .message-body) {
+					grid-column: 1;
+					grid-row: 1;
 				}
 
 				:global(.message-body) {
