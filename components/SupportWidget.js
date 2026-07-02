@@ -708,12 +708,48 @@ const readableLinkLabel = (url = "", explicitLabel = "") => {
 	}
 };
 
+const RTL_SCRIPT_RE = /[\u0591-\u07ff\ufb1d-\ufdfd\ufe70-\ufefc]/u;
+const STRONG_SCRIPT_RE = /[\u0591-\u07ff\ufb1d-\ufdfd\ufe70-\ufefcA-Za-z]/gu;
+const LTR_TEXT_RE = /[A-Za-z]/u;
+const LTR_SEGMENT_RE =
+	/(\([^()\u0591-\u07ff\ufb1d-\ufdfd\ufe70-\ufefc]*[A-Za-z][^()\u0591-\u07ff\ufb1d-\ufdfd\ufe70-\ufefc]*\)|[A-Za-z][A-Za-z0-9&.,'\u2019/+\-\u2013\u2014() ]*[A-Za-z0-9)]?)/gu;
+
+const messageTextDirection = (value = "") => {
+	const text = String(value || "");
+	const strongChars = text.match(STRONG_SCRIPT_RE) || [];
+	if (!strongChars.length) return "auto";
+	return RTL_SCRIPT_RE.test(strongChars[0]) ? "rtl" : "ltr";
+};
+
+const renderDirectionalText = (text = "", keyPrefix = "text") =>
+	String(text || "")
+		.split(LTR_SEGMENT_RE)
+		.filter((part) => part !== "")
+		.map((part, index) => {
+			const dir = LTR_TEXT_RE.test(part) ? "ltr" : "auto";
+			return (
+				<bdi
+					key={`${keyPrefix}-dir-${index}`}
+					dir={dir}
+					className={dir === "ltr" ? "message-ltr" : "message-auto"}
+				>
+					{part}
+				</bdi>
+			);
+		});
+
 const renderFormattedText = (text = "", keyPrefix = "text") =>
 	String(text || "")
 		.split(/(\*\*[^*]+\*\*)/g)
 		.map((part, index) => {
 			const bold = part.match(/^\*\*([^*]+)\*\*$/);
-			return bold ? <strong key={`${keyPrefix}-bold-${index}`}>{bold[1]}</strong> : part;
+			return bold ? (
+				<strong key={`${keyPrefix}-bold-${index}`} dir={messageTextDirection(bold[1])}>
+					{renderDirectionalText(bold[1], `${keyPrefix}-bold-${index}`)}
+				</strong>
+			) : (
+				renderDirectionalText(part, `${keyPrefix}-part-${index}`)
+			);
 		});
 
 const renderMessageWithLinks = (text = "", keyPrefix = "link") => {
@@ -723,9 +759,16 @@ const renderMessageWithLinks = (text = "", keyPrefix = "link") => {
 	return safeText.split(linkRegex).map((part, index) => {
 		const markdown = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
 		if (markdown) {
+			const label = readableLinkLabel(markdown[2], markdown[1]);
 			return (
-				<a key={`${keyPrefix}-markdown-${index}`} href={markdown[2]} target="_blank" rel="noopener noreferrer">
-					{readableLinkLabel(markdown[2], markdown[1])}
+				<a
+					key={`${keyPrefix}-markdown-${index}`}
+					href={markdown[2]}
+					target="_blank"
+					rel="noopener noreferrer"
+					dir={messageTextDirection(label)}
+				>
+					{renderDirectionalText(label, `${keyPrefix}-markdown-${index}`)}
 				</a>
 			);
 		}
@@ -733,9 +776,16 @@ const renderMessageWithLinks = (text = "", keyPrefix = "link") => {
 			const match = part.match(/^(https?:\/\/[^\s<>()]+?)([.,!?;:]*)$/);
 			const href = match?.[1] || part;
 			const suffix = match?.[2] || "";
+			const label = readableLinkLabel(href);
 			return [
-				<a key={`${keyPrefix}-url-${index}`} href={href} target="_blank" rel="noopener noreferrer">
-					{readableLinkLabel(href)}
+				<a
+					key={`${keyPrefix}-url-${index}`}
+					href={href}
+					target="_blank"
+					rel="noopener noreferrer"
+					dir={messageTextDirection(label)}
+				>
+					{renderDirectionalText(label, `${keyPrefix}-url-${index}`)}
 				</a>,
 				suffix ? <span key={`${keyPrefix}-suffix-${index}`}>{suffix}</span> : null,
 			];
@@ -789,6 +839,7 @@ const renderMessageLinePolished = (line = "", index = 0) => {
 	);
 	const bullet = bulletMatch?.[1] || "";
 	const body = bulletMatch?.[2] || text;
+	const lineDirection = messageTextDirection(body);
 	const labelMatch = body.match(/^([^:\uFF1A]{1,42})\s*[:\uFF1A]\s*(.+)$/u);
 	const label = String(labelMatch?.[1] || "").trim();
 	const value = String(labelMatch?.[2] || "");
@@ -802,12 +853,22 @@ const renderMessageLinePolished = (line = "", index = 0) => {
 		!/^\[[^\]]+\]\(https?:\/\//i.test(trimmedBody);
 
 	return (
-		<span key={`line-${index}`} className={`message-line${bullet ? " has-bullet" : ""}`}>
-			{bullet ? <span className="message-bullet">{bullet.trim()}</span> : null}
-			<span className="message-body">
+		<span
+			key={`line-${index}`}
+			className={`message-line${bullet ? " has-bullet" : ""}`}
+			dir={lineDirection}
+		>
+			{bullet ? (
+				<span className="message-bullet" dir="auto">
+					{bullet.trim()}
+				</span>
+			) : null}
+			<span className="message-body" dir={lineDirection}>
 				{canStyleLabel ? (
 					<>
-						<strong className="message-label">{label}:</strong>{" "}
+						<strong className="message-label" dir={messageTextDirection(label)}>
+							{renderDirectionalText(`${label}:`, `line-${index}-label`)}
+						</strong>{" "}
 						{renderMessageWithLinks(value, `line-${index}-value`)}
 					</>
 				) : (
@@ -2140,6 +2201,7 @@ export default function SupportWidget({ hotels = [] }) {
 									const sender = brandText(message?.messageBy?.customerName || "Support", isChatArabic);
 									const text = brandText(message?.message || "", isChatArabic);
 									const isGuest = messageSenderRole(message, form.contact) === "guest";
+									const messageDirection = messageTextDirection(text);
 									const quickReplies = quickRepliesForMessage(message);
 									const showQuickReplies =
 										!isGuest &&
@@ -2148,7 +2210,7 @@ export default function SupportWidget({ hotels = [] }) {
 									return (
 										<div className={`bubble ${isGuest ? "guest" : "agent"}`} key={`${index}-${messageKey(message)}`}>
 											<span className="message-sender">{sender}</span>
-											<div className="message-content" dir="auto">
+											<div className="message-content" dir={messageDirection}>
 												{renderMessageContent(text)}
 											</div>
 											{showQuickReplies ? (
@@ -2948,7 +3010,8 @@ export default function SupportWidget({ hotels = [] }) {
 					overflow-wrap: anywhere;
 					word-break: break-word;
 					text-align: start;
-					unicode-bidi: plaintext;
+					direction: inherit;
+					unicode-bidi: isolate;
 				}
 
 				:global(.message-line) {
@@ -2956,7 +3019,16 @@ export default function SupportWidget({ hotels = [] }) {
 					white-space: pre-wrap;
 					max-width: 100%;
 					text-align: start;
-					unicode-bidi: plaintext;
+					direction: inherit;
+					unicode-bidi: isolate;
+				}
+
+				:global(.message-line[dir="rtl"]) {
+					text-align: right;
+				}
+
+				:global(.message-line[dir="ltr"]) {
+					text-align: left;
 				}
 
 				:global(.message-line.has-bullet) {
@@ -2967,13 +3039,44 @@ export default function SupportWidget({ hotels = [] }) {
 					padding-inline-start: 0;
 				}
 
+				:global(.message-line.has-bullet[dir="rtl"]) {
+					grid-template-columns: minmax(0, 1fr) auto;
+				}
+
+				:global(.message-line.has-bullet[dir="rtl"] .message-bullet) {
+					grid-column: 2;
+				}
+
+				:global(.message-line.has-bullet[dir="rtl"] .message-body) {
+					grid-column: 1;
+					grid-row: 1;
+				}
+
 				:global(.message-body) {
 					min-width: 0;
 					display: inline;
 					white-space: pre-wrap;
 					overflow-wrap: anywhere;
 					word-break: break-word;
-					unicode-bidi: plaintext;
+					direction: inherit;
+					unicode-bidi: isolate;
+				}
+
+				:global(.message-body[dir="rtl"]) {
+					text-align: right;
+				}
+
+				:global(.message-body[dir="ltr"]) {
+					text-align: left;
+				}
+
+				:global(.message-ltr) {
+					direction: ltr;
+					unicode-bidi: isolate;
+				}
+
+				:global(.message-auto) {
+					unicode-bidi: isolate;
 				}
 
 				:global(.message-line + .message-line) {
