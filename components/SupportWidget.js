@@ -15,8 +15,8 @@ import { ARABIC_BRAND_NAME, BRAND_NAME, CONTACT_EMAIL } from "../lib/constants";
 import { slugifyHotel, titleCase } from "../lib/format";
 import { useJannatApp } from "./JannatAppProvider";
 
-const JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
-const JANNAT_SUPPORTER_ID = "6553f1c6d06c5cea2f98a838";
+const DEFAULT_JANNAT_SUPPORT_HOTEL_ID = "674cf8997e3780f1f838d458";
+const DEFAULT_JANNAT_SUPPORTER_ID = "6553f1c6d06c5cea2f98a838";
 const SUPPORT_CHAT_STORAGE_KEY = "jannat_support_chat_state_v1";
 const SUPPORT_CHAT_STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SUPPORT_SEND_TIMEOUT_MS = 20000;
@@ -29,6 +29,29 @@ const brandText = (value = "", isArabic = false) =>
 	String(value || "")
 		.replace(/Jannat Booking/gi, isArabic ? ARABIC_BRAND_NAME : BRAND_NAME)
 		.replace(/support@jannatbooking\.com/gi, CONTACT_EMAIL);
+
+const normalizeConfigId = (value = "") =>
+	String(value?._id || value?.id || value || "")
+		.trim()
+		.toLowerCase();
+
+const supportHotelIdFromConfig = (supportConfig = {}) =>
+	normalizeConfigId(supportConfig.supportHotelId) || DEFAULT_JANNAT_SUPPORT_HOTEL_ID;
+
+const supportOwnerIdFromConfig = (supportConfig = {}) =>
+	normalizeConfigId(supportConfig.supporterId) || DEFAULT_JANNAT_SUPPORTER_ID;
+
+const isVirtualSupportHotelId = (hotelId = "", supportConfig = {}) => {
+	const normalized = normalizeConfigId(hotelId);
+	if (!normalized) return false;
+	const ids = [
+		supportHotelIdFromConfig(supportConfig),
+		...(Array.isArray(supportConfig.virtualHotelIds)
+			? supportConfig.virtualHotelIds
+			: []),
+	].map(normalizeConfigId);
+	return ids.includes(normalized);
+};
 
 const supportTopicOptions = (isArabic) => [
 	{
@@ -900,9 +923,11 @@ const typingStatusText = ({ name, isAi, languageName, fallback }) => {
 	return [typingName, suffix].filter(Boolean).join(" ");
 };
 
-export default function SupportWidget({ hotels = [] }) {
+export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const { isArabic } = useJannatApp();
 	const pathname = usePathname() || "";
+	const jannatSupportHotelId = supportHotelIdFromConfig(supportConfig);
+	const jannatSupporterId = supportOwnerIdFromConfig(supportConfig);
 	const siteDefaultChatLanguage = isArabic ? "Arabic" : "English";
 	const [open, setOpen] = useState(false);
 	const [caseId, setCaseId] = useState("");
@@ -960,11 +985,11 @@ export default function SupportWidget({ hotels = [] }) {
 	const chatLanguageLabel = chatCopy.conversationLanguage;
 	const supportHotel = useMemo(
 		() => ({
-			_id: JANNAT_SUPPORT_HOTEL_ID,
+			_id: jannatSupportHotelId,
 			hotelName: chatBrandName,
-			belongsTo: JANNAT_SUPPORTER_ID,
+			belongsTo: jannatSupporterId,
 		}),
-		[chatBrandName]
+		[chatBrandName, jannatSupportHotelId, jannatSupporterId]
 	);
 	const hotelOptions = useMemo(() => [supportHotel, ...hotels], [hotels, supportHotel]);
 	const pageHotelSlug = useMemo(() => singleHotelSlugFromPathname(pathname), [pathname]);
@@ -984,14 +1009,25 @@ export default function SupportWidget({ hotels = [] }) {
 		[isChatArabic, pageHotel]
 	);
 	const hotelContext =
-		selectedHotel && String(selectedHotel._id) !== JANNAT_SUPPORT_HOTEL_ID
+		selectedHotel && !isVirtualSupportHotelId(selectedHotel._id, supportConfig)
 			? selectedHotel
 			: pageHotel;
 	const hotelContextName = supportHotelDisplayName(hotelContext, isChatArabic);
 	const receptionChatLabel = isChatArabic ? "تحدث مع الاستقبال" : "Chat With Reception";
+	const transferredCaseHotelName =
+		caseMeta?.supportScope === "hotel"
+			? supportHotelDisplayName(
+					{
+						hotelName: caseMeta.displayName2,
+						hotelName_OtherLanguage: caseMeta.displayName2,
+					},
+					isChatArabic
+			  )
+			: "";
 	const chatLabel = hotelContext ? receptionChatLabel : chatCopy.customerSupport;
-	const chatHeaderTitle = hotelContextName || chatBrandName;
-	const chatHeaderSubtitle = hotelContext ? receptionChatLabel : chatCopy.hotelSupport;
+	const chatHeaderTitle = transferredCaseHotelName || hotelContextName || chatBrandName;
+	const chatHeaderSubtitle =
+		transferredCaseHotelName || hotelContext ? receptionChatLabel : chatCopy.hotelSupport;
 	const topics = useMemo(
 		() =>
 			supportTopicOptions(isChatArabic).map((topic) => ({
@@ -1295,7 +1331,7 @@ export default function SupportWidget({ hotels = [] }) {
 					selectedTopic?.label || "Room booking or availability"
 				}] ${cleanMessage}`,
 				supportScope:
-					String(selectedHotel._id) === JANNAT_SUPPORT_HOTEL_ID
+					isVirtualSupportHotelId(selectedHotel._id, supportConfig)
 						? "jannat_booking"
 						: "hotel",
 				supporterId: ownerId,
@@ -1351,6 +1387,7 @@ export default function SupportWidget({ hotels = [] }) {
 			selectedHotel,
 			selectedTopic,
 			showLocalAiTyping,
+			supportConfig,
 		]
 	);
 

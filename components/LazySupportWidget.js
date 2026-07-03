@@ -21,7 +21,11 @@ const hasChatIntent = () => {
 	].some((key) => params.has(key));
 };
 
-export default function LazySupportWidget({ hotels = [], website = {} }) {
+export default function LazySupportWidget({
+	hotels = [],
+	website = {},
+	supportConfig = {},
+}) {
 	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
@@ -49,5 +53,11 @@ export default function LazySupportWidget({ hotels = [], website = {} }) {
 		};
 	}, []);
 
-	return ready ? <SupportWidget hotels={hotels} website={website} /> : null;
+	return ready ? (
+		<SupportWidget
+			hotels={hotels}
+			website={website}
+			supportConfig={supportConfig}
+		/>
+	) : null;
 }

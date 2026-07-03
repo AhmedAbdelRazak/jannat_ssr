@@ -19,6 +19,10 @@ import LazySupportWidget from "../components/LazySupportWidget";
 import { maskWebsiteEmails } from "../lib/email";
 import { JannatAppProvider } from "../components/JannatAppProvider";
 import Analytics from "../components/Analytics";
+import {
+	getJannatSupportConfig,
+	isVirtualJannatSupportHotelId,
+} from "../lib/supportConfig";
 
 const ICON_VERSION = "jb-20260619-premium";
 
@@ -67,6 +71,7 @@ export default async function RootLayout({ children }) {
 	const initialDirection = LANGUAGES[initialLanguage]?.dir || "ltr";
 	const [website, hotels, dealHotels] = await Promise.all([getWebsite(), getHotels(), getDealHotels()]);
 	const clientWebsite = maskWebsiteEmails(website);
+	const supportConfig = getJannatSupportConfig();
 	const hasOffers = Array.isArray(dealHotels) && dealHotels.length > 0;
 	const footerHotels = Array.isArray(hotels)
 		? hotels.slice(0, 4).map((hotel) => ({
@@ -76,7 +81,7 @@ export default async function RootLayout({ children }) {
 		  }))
 		: [];
 	const supportHotels = Array.isArray(hotels)
-		? hotels.map((hotel) => ({
+		? hotels.filter((hotel) => !isVirtualJannatSupportHotelId(hotel._id, supportConfig)).map((hotel) => ({
 				_id: hotel._id,
 				hotelName: hotel.hotelName,
 				belongsTo: hotel.belongsTo?._id || hotel.belongsTo || "",
@@ -169,7 +174,11 @@ export default async function RootLayout({ children }) {
 					<Header website={clientWebsite} hasOffers={hasOffers} />
 					<main>{children}</main>
 					<Footer website={clientWebsite} hotels={footerHotels} hasOffers={hasOffers} />
-					<LazySupportWidget hotels={supportHotels} website={clientWebsite} />
+					<LazySupportWidget
+						hotels={supportHotels}
+						website={clientWebsite}
+						supportConfig={supportConfig}
+					/>
 				</JannatAppProvider>
 			</body>
 		</html>
