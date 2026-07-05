@@ -573,6 +573,14 @@ const quickRepliesForMessage = (message = {}) =>
 				.slice(0, 4)
 		: [];
 
+const TRANSFER_NOTICE_ACTIONS = new Set([
+	"jannat_hotel_transfer",
+	"hotel_jannat_support_transfer",
+]);
+
+const isTransferNoticeMessage = (message = {}) =>
+	TRANSFER_NOTICE_ACTIONS.has(String(message?.clientAction || "").trim().toLowerCase());
+
 const normalizedIdentity = (value = "") =>
 	String(value || "")
 		.trim()
@@ -2310,6 +2318,20 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 										!isGuest &&
 										quickReplies.length > 0 &&
 										latestQuickReplySet.index === index;
+									if (isTransferNoticeMessage(message)) {
+										return (
+											<div
+												className="transfer-notice"
+												dir={bubbleDirection}
+												key={`${index}-${messageKey(message)}`}
+												role="status"
+											>
+												<div className="transfer-notice-line" dir={bubbleDirection}>
+													{renderMessageContent(text)}
+												</div>
+											</div>
+										);
+									}
 									return (
 										<div
 											className={`bubble ${isGuest ? "guest" : "agent"}`}
@@ -3093,6 +3115,38 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 						var(--zad-blue);
 					border-color: rgba(20, 66, 102, 0.95);
 					box-shadow: 0 10px 22px rgba(13, 53, 86, 0.18);
+				}
+
+				.transfer-notice {
+					align-self: center;
+					width: min(100%, 430px);
+					margin: 1px auto 3px;
+					padding: 0 8px;
+					color: #36536b;
+					text-align: center;
+				}
+
+				.transfer-notice-line {
+					display: inline-block;
+					max-width: 100%;
+					padding: 7px 10px;
+					border: 1px solid rgba(11, 143, 106, 0.18);
+					border-radius: 8px;
+					background: #eef8f4;
+					font-size: 12.5px;
+					font-weight: 850;
+					line-height: 1.45;
+					overflow-wrap: anywhere;
+					box-shadow: 0 6px 14px rgba(15, 20, 35, 0.06);
+				}
+
+				.transfer-notice :global(.message-line) {
+					display: inline;
+					white-space: normal;
+				}
+
+				.transfer-notice :global(.message-line + .message-line)::before {
+					content: " ";
 				}
 
 				.bubble > .message-sender {
