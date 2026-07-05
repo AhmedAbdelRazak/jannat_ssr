@@ -654,6 +654,18 @@ function JannatPayPalButtons({
 }) {
 	const { message } = AntdApp.useApp();
 	const [{ isResolved, isRejected }] = usePayPalScriptReducer();
+	const selectedUsdAmount =
+		selectedPaymentOption === "acceptDeposit"
+			? toMoney(safeNumber(convertedAmounts.totalUSD, 0) * 0.15)
+			: selectedPaymentOption === "acceptPayWholeAmount"
+				? toMoney(convertedAmounts.totalUSD)
+				: 0;
+	const selectedSarAmount =
+		selectedPaymentOption === "acceptDeposit"
+			? toMoney(totalSar * 0.15)
+			: selectedPaymentOption === "acceptPayWholeAmount"
+				? toMoney(totalSar)
+				: 0;
 	const cardFieldsStatus = usePayPalCardFieldsStatus(
 		isResolved,
 		walletOnly,
@@ -667,18 +679,6 @@ function JannatPayPalButtons({
 	});
 	const suppressPaymentErrorUntilRef = useRef(0);
 
-	const selectedUsdAmount =
-		selectedPaymentOption === "acceptDeposit"
-			? toMoney(safeNumber(convertedAmounts.totalUSD, 0) * 0.15)
-			: selectedPaymentOption === "acceptPayWholeAmount"
-				? toMoney(convertedAmounts.totalUSD)
-				: 0;
-	const selectedSarAmount =
-		selectedPaymentOption === "acceptDeposit"
-			? toMoney(totalSar * 0.15)
-			: selectedPaymentOption === "acceptPayWholeAmount"
-				? toMoney(totalSar)
-				: 0;
 	const allowInteract = canPay && selectedUsdAmount > 0 && selectedSarAmount > 0;
 	const selectedCurrencyAmount =
 		selectedCurrency !== "sar" && typeof formatCurrency === "function"
