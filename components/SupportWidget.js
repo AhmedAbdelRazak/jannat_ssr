@@ -761,11 +761,68 @@ const renderDirectionalText = (text = "", keyPrefix = "text") =>
 			);
 		});
 
+const decodeInlineMarkupText = (value = "") =>
+	String(value || "")
+		.replace(/&quot;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&gt;/g, ">")
+		.replace(/&lt;/g, "<")
+		.replace(/&amp;/g, "&");
+
+const INLINE_FORMAT_RE =
+	/(<s\b[^>]*class=["'][^"']*\bmessage-price-old\b[^>]*>[\s\S]*?<\/s>|<strong\b[^>]*class=["'][^"']*\bmessage-price-new\b[^>]*>[\s\S]*?<\/strong>|<span\b[^>]*class=["'][^"']*\bmessage-price-badge\b[^>]*>[\s\S]*?<\/span>|\*\*[^*]+\*\*|~~[^~]+~~)/gi;
+
 const renderFormattedText = (text = "", keyPrefix = "text") =>
 	String(text || "")
-		.split(/(\*\*[^*]+\*\*)/g)
+		.split(INLINE_FORMAT_RE)
 		.map((part, index) => {
 			const bold = part.match(/^\*\*([^*]+)\*\*$/);
+			const oldPrice =
+				part.match(
+					/^<s\b[^>]*class=["'][^"']*\bmessage-price-old\b[^>]*>([\s\S]*?)<\/s>$/i
+				) || part.match(/^~~([^~]+)~~$/);
+			const newPrice = part.match(
+				/^<strong\b[^>]*class=["'][^"']*\bmessage-price-new\b[^>]*>([\s\S]*?)<\/strong>$/i
+			);
+			const priceBadge = part.match(
+				/^<span\b[^>]*class=["'][^"']*\bmessage-price-badge\b[^>]*>([\s\S]*?)<\/span>$/i
+			);
+			if (oldPrice) {
+				const value = decodeInlineMarkupText(oldPrice[1]);
+				return (
+					<s
+						key={`${keyPrefix}-old-price-${index}`}
+						className="message-price-old"
+						dir={messageTextDirection(value)}
+					>
+						{renderDirectionalText(value, `${keyPrefix}-old-price-${index}`)}
+					</s>
+				);
+			}
+			if (newPrice) {
+				const value = decodeInlineMarkupText(newPrice[1]);
+				return (
+					<strong
+						key={`${keyPrefix}-new-price-${index}`}
+						className="message-price-new"
+						dir={messageTextDirection(value)}
+					>
+						{renderDirectionalText(value, `${keyPrefix}-new-price-${index}`)}
+					</strong>
+				);
+			}
+			if (priceBadge) {
+				const value = decodeInlineMarkupText(priceBadge[1]);
+				return (
+					<span
+						key={`${keyPrefix}-price-badge-${index}`}
+						className="message-price-badge"
+						dir={messageTextDirection(value)}
+					>
+						{renderDirectionalText(value, `${keyPrefix}-price-badge-${index}`)}
+					</span>
+				);
+			}
 			return bold ? (
 				<strong key={`${keyPrefix}-bold-${index}`} dir={messageTextDirection(bold[1])}>
 					{renderDirectionalText(bold[1], `${keyPrefix}-bold-${index}`)}
@@ -3172,6 +3229,47 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				.bubble.guest :global(.message-label),
 				.bubble.guest .message-content :global(strong) {
 					color: #ffffff;
+				}
+
+				:global(.message-price-old) {
+					display: inline-block;
+					margin-inline: 2px;
+					color: #b42318;
+					font-size: 0.92em;
+					font-weight: 950;
+					text-decoration-line: line-through;
+					text-decoration-thickness: 2px;
+					text-decoration-color: #b42318;
+					white-space: nowrap;
+				}
+
+				.bubble .message-content :global(.message-price-new) {
+					display: inline-block;
+					margin-inline: 2px;
+					color: #15803d;
+					font-weight: 950;
+					white-space: nowrap;
+				}
+
+				.bubble.guest .message-content :global(.message-price-new) {
+					color: #ffffff;
+				}
+
+				:global(.message-price-badge) {
+					display: inline-flex;
+					align-items: center;
+					min-height: 22px;
+					margin-inline: 4px 2px;
+					padding: 1px 7px;
+					border: 1px solid rgba(22, 163, 74, 0.24);
+					border-radius: 999px;
+					background: #ecfdf3;
+					color: #15803d;
+					font-size: 0.82em;
+					font-weight: 900;
+					line-height: 1.35;
+					vertical-align: middle;
+					white-space: normal;
 				}
 
 				.bubble .message-content :global(a) {
