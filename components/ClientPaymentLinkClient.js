@@ -1350,6 +1350,28 @@ export default function ClientPaymentLinkClient({
 		(paypalToken?.env === "live"
 			? process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE
 			: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_SANDBOX);
+	const paypalScriptKey = `${paypalClientId || "paypal"}-${shortSig(paypalToken?.clientToken || "")}-${paypalToken?.env || "env"}-${walletOnly ? "wallet" : "full"}-${reloadKey}-${language}`;
+	const paypalScriptOptions = useMemo(() => {
+		if (!paypalClientId) return null;
+		return {
+			"client-id": paypalClientId,
+			...(paypalToken?.clientToken && !walletOnly
+				? { "data-client-token": paypalToken.clientToken }
+				: {}),
+			components: `${paypalToken?.clientToken && !walletOnly ? "buttons,card-fields" : "buttons"},applepay`,
+			currency: "USD",
+			intent: "capture",
+			commit: true,
+			"enable-funding": "paypal,card",
+			"disable-funding": "credit,venmo,paylater",
+			locale: isArabic ? "ar_EG" : "en_US",
+		};
+	}, [
+		isArabic,
+		paypalClientId,
+		paypalToken?.clientToken,
+		walletOnly,
+	]);
 
 	if (!reservation || !reservation?._id) {
 		return (
@@ -1591,18 +1613,8 @@ export default function ClientPaymentLinkClient({
 								</div>
 							) : paypalClientId ? (
 								<PayPalScriptProvider
-									key={`${paypalClientId}-${shortSig(paypalToken?.clientToken || "")}-${paypalToken?.env || "env"}-${walletOnly ? "wallet" : "full"}-${reloadKey}-${language}`}
-									options={{
-										"client-id": paypalClientId,
-										...(paypalToken?.clientToken && !walletOnly ? { "data-client-token": paypalToken.clientToken } : {}),
-										components: `${paypalToken?.clientToken && !walletOnly ? "buttons,card-fields" : "buttons"},applepay`,
-										currency: "USD",
-										intent: "capture",
-										commit: true,
-										"enable-funding": "paypal,card",
-										"disable-funding": "credit,venmo,paylater",
-										locale: isArabic ? "ar_EG" : "en_US",
-									}}
+									key={paypalScriptKey}
+									options={paypalScriptOptions}
 								>
 									<ClientPaymentButtons
 										canPay={Boolean(canPreparePayment)}
