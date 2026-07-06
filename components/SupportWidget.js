@@ -422,6 +422,154 @@ const supportRequestError = (message, status, code) => {
 	return error;
 };
 
+const normalizeSupportGuestName = (value = "") =>
+	String(value || "")
+		.normalize("NFKC")
+		.replace(/[‘’`´]/g, "'")
+		.replace(/[‐‑‒–—]/g, "-")
+		.replace(/\s+/g, " ")
+		.trim();
+
+const SUPPORT_NAME_TITLES = new Set([
+	"mr",
+	"mrs",
+	"ms",
+	"miss",
+	"dr",
+	"doctor",
+	"prof",
+	"professor",
+	"sir",
+	"madam",
+	"m",
+	"mme",
+	"mlle",
+	"sr",
+	"sra",
+	"أستاذ",
+	"استاذ",
+	"أستاذة",
+	"استاذة",
+	"دكتور",
+	"دكتورة",
+	"د",
+	"السيد",
+	"السيدة",
+]);
+
+const SUPPORT_NAME_CONNECTORS = new Set([
+	"al",
+	"el",
+	"bin",
+	"ibn",
+	"abu",
+	"abd",
+	"bint",
+	"de",
+	"del",
+	"da",
+	"di",
+	"du",
+	"la",
+	"le",
+	"van",
+	"von",
+	"ال",
+	"بن",
+	"ابن",
+	"بنت",
+	"عبد",
+	"أبو",
+	"ابو",
+]);
+
+const SUPPORT_NAME_PLACEHOLDERS = new Set([
+	"guest",
+	"customer",
+	"client",
+	"user",
+	"test",
+	"tester",
+	"unknown",
+	"name",
+	"noname",
+	"asdf",
+	"qwerty",
+	"xxx",
+	"ضيف",
+	"زائر",
+	"عميل",
+	"اسم",
+	"اختبار",
+]);
+
+const supportNameTokenLetters = (value = "") =>
+	String(value || "")
+		.replace(/[^\p{L}]/gu, "")
+		.toLocaleLowerCase();
+
+const supportNameParts = (value = "") => {
+	const parts = normalizeSupportGuestName(value)
+		.replace(/[.,،;:!?؟()[\]{}"]/g, " ")
+		.split(/\s+/)
+		.map((part) => part.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ""))
+		.filter(Boolean);
+	while (parts.length && SUPPORT_NAME_TITLES.has(parts[0].replace(/\./g, "").toLocaleLowerCase())) {
+		parts.shift();
+	}
+	return parts;
+};
+
+const isCredibleSupportGuestFullName = (value = "") => {
+	const normalized = normalizeSupportGuestName(value);
+	if (!normalized) return false;
+	if (/@|https?:|www\.|[\d<>#$%^*_+=|\\/]/iu.test(normalized)) return false;
+	if (!/[\p{L}]/u.test(normalized)) return false;
+	const substantialParts = supportNameParts(normalized).filter((part) => {
+		const letters = supportNameTokenLetters(part);
+		return letters && !SUPPORT_NAME_CONNECTORS.has(letters);
+	});
+	if (substantialParts.length < 2) return false;
+	const letterParts = substantialParts.map(supportNameTokenLetters);
+	if (new Set(letterParts).size < 2) return false;
+	return letterParts.every((letters) => {
+		if (letters.length < 2) return false;
+		if (SUPPORT_NAME_PLACEHOLDERS.has(letters)) return false;
+		if (/^(.)\1+$/u.test(letters)) return false;
+		return true;
+	});
+};
+
+const supportFullNameError = (languageName = "English") => {
+	if (languageName === "Arabic") {
+		return "\u064a\u0631\u062c\u0649 \u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0623\u0648\u0644 \u0648\u0627\u0633\u0645 \u0627\u0644\u0639\u0627\u0626\u0644\u0629\u060c \u0645\u062b\u0627\u0644: \u0623\u062d\u0645\u062f \u0641\u0648\u0632\u064a.";
+	}
+	if (languageName === "Spanish") {
+		return "Escribe tu nombre y apellido, por ejemplo Ahmed Fawzy.";
+	}
+	if (languageName === "French") {
+		return "Veuillez saisir votre prenom et votre nom, par exemple Ahmed Fawzy.";
+	}
+	if (languageName === "Indonesian") {
+		return "Mohon isi nama depan dan nama belakang, misalnya Ahmed Fawzy.";
+	}
+	if (languageName === "Malay (Malaysia)") {
+		return "Sila masukkan nama pertama dan nama keluarga, contohnya Ahmed Fawzy.";
+	}
+	return "Please enter your first and last name, for example Ahmed Fawzy.";
+};
+
+const supportFullNameHint = (languageName = "English") => {
+	if (languageName === "Arabic") {
+		return "\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644: \u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0623\u0648\u0644 \u0648\u0627\u0633\u0645 \u0627\u0644\u0639\u0627\u0626\u0644\u0629.";
+	}
+	if (languageName === "Spanish") return "Full name: first name and last name.";
+	if (languageName === "French") return "Nom complet : prenom et nom.";
+	if (languageName === "Indonesian") return "Nama lengkap: nama depan dan nama belakang.";
+	if (languageName === "Malay (Malaysia)") return "Nama penuh: nama pertama dan nama keluarga.";
+	return "Full name: first name and last name.";
+};
+
 const isClosedSupportCaseError = (error = {}) =>
 	error?.code === "SUPPORT_CASE_CLOSED" ||
 	error?.status === 409 ||
@@ -1048,6 +1196,10 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const isChatArabic = languageName === "Arabic";
 	const chatBrandName = isChatArabic ? ARABIC_BRAND_NAME : BRAND_NAME;
 	const chatLanguageLabel = chatCopy.conversationLanguage;
+	const fullNameError = supportFullNameError(languageName);
+	const fullNameHint = supportFullNameHint(languageName);
+	const nameHasValue = Boolean(normalizeSupportGuestName(form.name));
+	const nameInvalid = nameHasValue && !isCredibleSupportGuestFullName(form.name);
 	const supportHotel = useMemo(
 		() => ({
 			_id: jannatSupportHotelId,
@@ -1366,8 +1518,15 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const createSupportCaseFromMessage = useCallback(
 		async (initialMessage = "", options = {}) => {
 			const cleanMessage = String(initialMessage || "").trim();
-			if (!form.name.trim() || !form.contact.trim() || !selectedHotel || !cleanMessage) {
+			const cleanCustomerName = normalizeSupportGuestName(form.name);
+			if (!cleanCustomerName || !form.contact.trim() || !selectedHotel || !cleanMessage) {
 				throw supportRequestError(chatCopy.requiredError, 400, "REQUIRED_FIELDS");
+			}
+			if (!isCredibleSupportGuestFullName(cleanCustomerName)) {
+				throw supportRequestError(fullNameError, 400, "INVALID_FULL_NAME");
+			}
+			if (cleanCustomerName !== form.name) {
+				setForm((current) => ({ ...current, name: cleanCustomerName }));
 			}
 			const ownerId = String(selectedHotel?.belongsTo?._id || selectedHotel?.belongsTo || "").trim();
 			if (!ownerId) {
@@ -1375,7 +1534,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			}
 			if (options.commitQuery !== false) {
 				commitChatQueryFields({
-					name: form.name,
+					name: cleanCustomerName,
 					contact: form.contact,
 					hotelId: selectedHotel._id,
 					hotelName: selectedHotel.hotelName || form.hotelName,
@@ -1385,8 +1544,8 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				});
 			}
 			const payload = {
-				customerName: form.name,
-				displayName1: form.name,
+				customerName: cleanCustomerName,
+				displayName1: cleanCustomerName,
 				displayName2: selectedHotel.hotelName || form.hotelName,
 				role: 0,
 				customerEmail: form.contact,
@@ -1447,6 +1606,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			form.contact,
 			form.hotelName,
 			form.name,
+			fullNameError,
 			languageCode,
 			languageName,
 			selectedHotel,
@@ -2435,10 +2595,22 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 								<label>{chatCopy.name}</label>
 								<input
 									value={form.name}
-									onChange={(event) => updateForm("name", event.target.value)}
-									onBlur={(event) => commitChatQueryFields({ name: event.target.value })}
+									onChange={(event) => {
+										updateForm("name", event.target.value);
+										if (error) setError("");
+									}}
+									onBlur={(event) => {
+										const cleanName = normalizeSupportGuestName(event.target.value);
+										updateForm("name", cleanName);
+										commitChatQueryFields({ name: cleanName });
+									}}
 									autoComplete="name"
+									aria-invalid={nameInvalid ? "true" : "false"}
+									aria-describedby="support-full-name-hint"
 								/>
+								<p id="support-full-name-hint" className={nameInvalid ? "field-hint field-hint-error" : "field-hint"}>
+									{nameInvalid ? fullNameError : fullNameHint}
+								</p>
 							</div>
 							<div className="field support-field">
 								<label>{chatCopy.contact}</label>
@@ -2938,6 +3110,24 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				.support-language-select {
 					min-height: 46px;
 					padding: 0 13px;
+				}
+
+				.support-field input[aria-invalid="true"] {
+					border-color: rgba(180, 35, 24, 0.72);
+					background: rgba(255, 251, 250, 0.98);
+					box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.1);
+				}
+
+				.field-hint {
+					margin: -1px 0 0;
+					color: rgba(71, 84, 103, 0.92);
+					font-size: 11px;
+					font-weight: 800;
+					line-height: 1.35;
+				}
+
+				.field-hint-error {
+					color: #b42318;
 				}
 
 				.support-language-select-wrap {

@@ -35,6 +35,7 @@ export default function CartDrawer() {
 	} = useJannatApp();
 	const today = dayjs().startOf("day");
 	const stayDatesLabel = isArabic ? "\u062a\u0648\u0627\u0631\u064a\u062e \u0627\u0644\u0625\u0642\u0627\u0645\u0629" : "Stay dates";
+	const checkoutHref = hrefWithLanguage("/checkout");
 	const editableDateItems = cart.filter((item) => !isLockedCartItem(item));
 	const lockedPackagesCount = cart.filter((item) => isLockedCartItem(item)).length;
 	const firstItem = editableDateItems[0] || cart[0] || {};
@@ -60,6 +61,15 @@ export default function CartDrawer() {
 			? date.format(DATE_FORMAT)
 			: cartCheckIn.add(1, "day").format(DATE_FORMAT);
 		updateCartDates(cartCheckIn.format(DATE_FORMAT), checkOut);
+	};
+
+	const handleCheckoutClick = () => {
+		trackConversion(
+			"beginCheckout",
+			{ value: totals.amount, currency: "SAR" },
+			["Checkout Click"]
+		);
+		setCartOpen(false);
 	};
 
 	return (
@@ -201,20 +211,9 @@ export default function CartDrawer() {
 						<span>{t("subtotal")}</span>
 						<strong dir="ltr" className="ltr-value">{formatCurrency(totals.amount)}</strong>
 					</div>
-					<Link
-						href={hrefWithLanguage("/checkout")}
-						onClick={() => {
-							trackConversion(
-								"beginCheckout",
-								{ value: totals.amount, currency: "SAR" },
-								["Checkout Click"]
-							);
-							setCartOpen(false);
-						}}
-					>
-						<Button type="primary" size="large" block icon={<BedDouble size={18} />}>
-							{t("checkout")}
-						</Button>
+					<Link className="cart-checkout-link" href={checkoutHref} prefetch={false} onClick={handleCheckoutClick}>
+						<BedDouble size={18} />
+						<span>{t("checkout")}</span>
 					</Link>
 					<Button size="large" block onClick={() => setCartOpen(false)}>
 						{t("continueShopping")}
