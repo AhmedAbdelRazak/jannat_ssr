@@ -148,6 +148,14 @@ const text = {
 };
 
 const toMoney = (value) => Number(safeNumber(value, 0).toFixed(2));
+const shortSig = (value = "") => {
+	const textValue = String(value || "");
+	let hash = 0;
+	for (let index = 0; index < textValue.length; index += 1) {
+		hash = (hash * 33 + textValue.charCodeAt(index)) >>> 0;
+	}
+	return hash.toString(16);
+};
 
 const isPositive = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 const CARD_FIELDS_READY_ATTEMPTS = 60;
@@ -604,6 +612,22 @@ function ClientPaymentButtons({
 		selectedOption &&
 		isPositive(selectedOption.sarAmount) &&
 		isPositive(selectedUsdAmount);
+	const buttonsForceReRender = useMemo(
+		() => [
+			selectedOption?.id || "none",
+			selectedOption?.paypalOption || "option",
+			String(selectedOption?.sarAmount || 0),
+			String(selectedUsdAmount || 0),
+			walletOnly ? "wallet" : "full",
+		],
+		[
+			selectedOption?.id,
+			selectedOption?.paypalOption,
+			selectedOption?.sarAmount,
+			selectedUsdAmount,
+			walletOnly,
+		]
+	);
 	const cardFieldsStatus = usePayPalCardFieldsStatus(
 		isResolved,
 		walletOnly,
@@ -806,6 +830,7 @@ function ClientPaymentButtons({
 			<PayPalButtons
 				fundingSource="paypal"
 				style={{ layout: "vertical", label: "paypal" }}
+				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
@@ -824,6 +849,7 @@ function ClientPaymentButtons({
 			<PayPalButtons
 				fundingSource="card"
 				style={{ layout: "vertical", label: "pay" }}
+				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
@@ -1565,7 +1591,7 @@ export default function ClientPaymentLinkClient({
 								</div>
 							) : paypalClientId ? (
 								<PayPalScriptProvider
-									key={`${paypalClientId}-${paypalToken?.env || "env"}-${walletOnly ? "wallet" : "full"}-${reloadKey}-${language}`}
+									key={`${paypalClientId}-${shortSig(paypalToken?.clientToken || "")}-${paypalToken?.env || "env"}-${walletOnly ? "wallet" : "full"}-${reloadKey}-${language}`}
 									options={{
 										"client-id": paypalClientId,
 										...(paypalToken?.clientToken && !walletOnly ? { "data-client-token": paypalToken.clientToken } : {}),

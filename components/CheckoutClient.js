@@ -48,6 +48,14 @@ const normalizePhoneInput = (value = "") =>
 const passwordFromPhone = (phone = "") => normalizePhoneInput(phone).replace(/\s+/g, "");
 
 const toMoney = (value) => Number(safeNumber(value, 0).toFixed(2));
+const shortSig = (value = "") => {
+	const text = String(value || "");
+	let hash = 0;
+	for (let index = 0; index < text.length; index += 1) {
+		hash = (hash * 33 + text.charCodeAt(index)) >>> 0;
+	}
+	return hash.toString(16);
+};
 const CARD_FIELDS_READY_ATTEMPTS = 60;
 const CARD_FIELDS_READY_INTERVAL_MS = 200;
 
@@ -680,6 +688,15 @@ function JannatPayPalButtons({
 	const suppressPaymentErrorUntilRef = useRef(0);
 
 	const allowInteract = canPay && selectedUsdAmount > 0 && selectedSarAmount > 0;
+	const buttonsForceReRender = useMemo(
+		() => [
+			selectedPaymentOption || "none",
+			String(selectedUsdAmount),
+			String(selectedSarAmount),
+			walletOnly ? "wallet" : "full",
+		],
+		[selectedPaymentOption, selectedSarAmount, selectedUsdAmount, walletOnly]
+	);
 	const selectedCurrencyAmount =
 		selectedCurrency !== "sar" && typeof formatCurrency === "function"
 			? formatCurrency(selectedSarAmount)
@@ -1007,6 +1024,7 @@ function JannatPayPalButtons({
 			<PayPalButtons
 				fundingSource="paypal"
 				style={{ layout: "vertical", label: "paypal" }}
+				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
@@ -1027,6 +1045,7 @@ function JannatPayPalButtons({
 			<PayPalButtons
 				fundingSource="card"
 				style={{ layout: "vertical", label: "pay" }}
+				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
 				onApprove={onApprove}
@@ -1841,7 +1860,7 @@ export default function CheckoutClient({ website = {} }) {
 						/>
 					) : paypalClientId ? (
 						<PayPalScriptProvider
-							key={`${paypalClientId}-${paypalToken?.env || "env"}-${paypalWalletOnly ? "buttons" : "cardfields"}-${applePayCapable ? "applepay" : "noapple"}-${paypalReloadKey}-${isArabic ? "ar" : "en"}`}
+							key={`${paypalClientId}-${shortSig(paypalToken?.clientToken || "")}-${paypalToken?.env || "env"}-${paypalWalletOnly ? "buttons" : "cardfields"}-${applePayCapable ? "applepay" : "noapple"}-${paypalReloadKey}-${isArabic ? "ar" : "en"}`}
 							options={{
 								"client-id": paypalClientId,
 								...(paypalToken?.clientToken && !paypalWalletOnly ? { "data-client-token": paypalToken.clientToken } : {}),
