@@ -8,6 +8,7 @@ export default function OptimizedImage({
 	loading,
 	quality = 78,
 	sizes = "100vw",
+	unoptimized = true,
 	...props
 }) {
 	const normalizedSrc = normalizeImageUrl(src);
@@ -20,6 +21,7 @@ export default function OptimizedImage({
 		priority,
 		quality,
 		sizes,
+		unoptimized,
 		draggable: false,
 	};
 
