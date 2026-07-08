@@ -18,17 +18,20 @@ const formatDate = (value) => {
 	if (!value) return "N/A";
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return "N/A";
-	return date.toLocaleDateString("en-US", {
+	return new Intl.DateTimeFormat("en-US", {
+		timeZone: "UTC",
 		year: "numeric",
 		month: "short",
 		day: "numeric",
-	});
+	}).format(date);
 };
 
 const nightsBetween = (checkin, checkout) => {
 	const start = new Date(checkin);
 	const end = new Date(checkout);
-	const nights = Math.ceil((end - start) / 86400000);
+	const startDay = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+	const endDay = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+	const nights = Math.round((endDay - startDay) / 86400000);
 	return Number.isFinite(nights) && nights > 0 ? nights : 1;
 };
 

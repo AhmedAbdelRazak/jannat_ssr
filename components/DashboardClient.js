@@ -44,6 +44,7 @@ const formatDate = (value, language) => {
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return "-";
 	return new Intl.DateTimeFormat(language === "ar" ? "ar-EG-u-nu-latn" : "en-US", {
+		timeZone: "UTC",
 		year: "numeric",
 		month: "short",
 		day: "numeric",

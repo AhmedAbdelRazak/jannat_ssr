@@ -262,6 +262,7 @@ const formatIsoDate = (value, language = "en") => {
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return "-";
 	return new Intl.DateTimeFormat(language === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-US", {
+		timeZone: "UTC",
 		year: "numeric",
 		month: "short",
 		day: "numeric",
@@ -276,6 +277,7 @@ const formatHijriDate = (value, language = "en") => {
 		return new Intl.DateTimeFormat(
 			language === "ar" ? "ar-SA-u-ca-islamic-umalqura-nu-latn" : "en-US-u-ca-islamic-umalqura",
 			{
+				timeZone: "UTC",
 				year: "numeric",
 				month: "long",
 				day: "numeric",
