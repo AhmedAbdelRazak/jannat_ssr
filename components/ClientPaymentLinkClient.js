@@ -41,6 +41,23 @@ import { useJannatApp } from "./JannatAppProvider";
 
 const APPLE_PAY_SDK_SRC = "https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js";
 const VALIDATION_KEY = "client-payment-validation";
+const PAYPAL_PENDING_REVIEW_CODE = "PAYPAL_CAPTURE_PENDING_REVIEW";
+
+const isPayPalPendingReviewPayload = (payload) =>
+	Boolean(
+		payload?.paypalPendingReview ||
+			payload?.pendingReview ||
+			payload?.code === PAYPAL_PENDING_REVIEW_CODE
+	);
+
+const paymentPendingReviewCopy = (isArabic) => ({
+	title: isArabic
+		? "\u0627\u0644\u062f\u0641\u0639 \u0642\u064a\u062f \u0645\u0631\u0627\u062c\u0639\u0629 PayPal"
+		: "Payment Is Under PayPal Review",
+	description: isArabic
+		? "\u0644\u0645 \u064a\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u062c\u0632 \u0643\u0645\u062f\u0641\u0648\u0639 \u0628\u0639\u062f. \u064a\u0631\u062c\u0649 \u0639\u062f\u0645 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u062f\u0641\u0639. \u0633\u064a\u062a\u0627\u0628\u0639 \u0641\u0631\u064a\u0642 \u062c\u0646\u0627\u062a \u0628\u0648\u0643\u064a\u0646\u062c \u0645\u0631\u0627\u062c\u0639\u0629 PayPal \u0648\u064a\u0624\u0643\u062f \u0644\u0643 \u0628\u0645\u062c\u0631\u062f \u0627\u0643\u062a\u0645\u0627\u0644\u0647\u0627."
+		: "The reservation has not been marked as paid yet. Please do not retry or submit another payment. Jannat Booking will follow the PayPal review and confirm once it is completed.",
+});
 
 const text = {
 	en: {
@@ -599,6 +616,7 @@ function ClientPaymentButtons({
 	selectedUsdAmount,
 	totalUsdAmount,
 	onPayApproved,
+	onPaymentPendingReview,
 	onValidationError,
 	walletOnly,
 	onUseWalletOnly,
@@ -770,6 +788,16 @@ function ClientPaymentButtons({
 				},
 			});
 		} catch (error) {
+			if (isPayPalPendingReviewPayload(error?.response || error)) {
+				onPaymentPendingReview?.(error?.response || error);
+				message.open({
+					key: "client-payment-review",
+					type: "warning",
+					content: paymentPendingReviewCopy(isArabic).description,
+					duration: 8,
+				});
+				return;
+			}
 			message.open({
 				key: "client-payment-error",
 				type: "error",
@@ -837,6 +865,16 @@ function ClientPaymentButtons({
 				createOrder={createOrder}
 				onApprove={onApprove}
 				onError={(error) => {
+					if (isPayPalPendingReviewPayload(error?.response || error)) {
+						onPaymentPendingReview?.(error?.response || error);
+						message.open({
+							key: "client-payment-review",
+							type: "warning",
+							content: paymentPendingReviewCopy(isArabic).description,
+							duration: 8,
+						});
+						return;
+					}
 					if (!shouldSuppressPaymentError(error)) {
 						message.open({
 							key: "client-payment-error",
@@ -856,6 +894,16 @@ function ClientPaymentButtons({
 				createOrder={createOrder}
 				onApprove={onApprove}
 				onError={(error) => {
+					if (isPayPalPendingReviewPayload(error?.response || error)) {
+						onPaymentPendingReview?.(error?.response || error);
+						message.open({
+							key: "client-payment-review",
+							type: "warning",
+							content: paymentPendingReviewCopy(isArabic).description,
+							duration: 8,
+						});
+						return;
+					}
 					if (!shouldSuppressPaymentError(error)) {
 						message.open({
 							key: "client-payment-error",
@@ -894,6 +942,16 @@ function ClientPaymentButtons({
 							createOrder={createOrder}
 							onApprove={onApprove}
 							onError={(error) => {
+								if (isPayPalPendingReviewPayload(error?.response || error)) {
+									onPaymentPendingReview?.(error?.response || error);
+									message.open({
+										key: "client-payment-review",
+										type: "warning",
+										content: paymentPendingReviewCopy(isArabic).description,
+										duration: 8,
+									});
+									return;
+								}
 								if (!shouldSuppressPaymentError(error)) {
 									message.open({
 										key: "client-payment-error",
@@ -1025,6 +1083,7 @@ export default function ClientPaymentLinkClient({
 	const [walletOnly, setWalletOnly] = useState(false);
 	const [reloadKey, setReloadKey] = useState(0);
 	const [submitting, setSubmitting] = useState(false);
+	const [paymentPendingReview, setPaymentPendingReview] = useState(null);
 	const paymentLinkViewTrackedRef = useRef(false);
 	const accountRecoveryAttemptedRef = useRef(false);
 
@@ -1179,6 +1238,7 @@ export default function ClientPaymentLinkClient({
 		!conversionLoading &&
 		!conversionError &&
 		isPositive(selectedUsdAmount) &&
+		!paymentPendingReview &&
 		!submitting;
 
 	useEffect(() => {
@@ -1266,6 +1326,11 @@ export default function ClientPaymentLinkClient({
 		[guestAgreed, issueField]
 	);
 
+	const showPaymentPendingReview = useCallback((payload = {}) => {
+		setPaymentPendingReview(payload || {});
+		setSubmitting(false);
+	}, []);
+
 	const validatePaymentReadiness = useCallback(() => {
 		if (!selectedOption) {
 			showValidationError("amount", labels.selectAmount);
@@ -1294,6 +1359,16 @@ export default function ClientPaymentLinkClient({
 				sarAmount: paypalPayload.sarAmount,
 				paypal: paypalPayload.paypal,
 			});
+			if (isPayPalPendingReviewPayload(response)) {
+				showPaymentPendingReview(response);
+				message.open({
+					key: "client-payment-review",
+					type: "warning",
+					content: paymentPendingReviewCopy(isArabic).description,
+					duration: 8,
+				});
+				return;
+			}
 			if (response?.accountSession?.token && response?.accountSession?.user?._id) {
 				setAuthSession(response.accountSession);
 			}
@@ -1334,6 +1409,16 @@ export default function ClientPaymentLinkClient({
 			}
 			router.push(`/reservation-confirmed?${params.toString()}`);
 		} catch (error) {
+			if (isPayPalPendingReviewPayload(error?.response || error)) {
+				showPaymentPendingReview(error?.response || error);
+				message.open({
+					key: "client-payment-review",
+					type: "warning",
+					content: paymentPendingReviewCopy(isArabic).description,
+					duration: 8,
+				});
+				return;
+			}
 			console.error("Client payment failed:", error);
 			message.open({
 				key: "client-payment-error",
@@ -1607,7 +1692,27 @@ export default function ClientPaymentLinkClient({
 									<span>{labels.terms}</span>
 								</button>
 							</div>
-							{conversionError ? (
+							{paymentPendingReview ? (
+								<Alert
+									type="warning"
+									showIcon
+									className="client-payment-review-alert"
+									message={paymentPendingReviewCopy(isArabic).title}
+									description={
+										<span>
+											{paymentPendingReviewCopy(isArabic).description}
+											{paymentPendingReview.confirmation_number ? (
+												<>
+													{" "}
+													<b dir="ltr" className="ltr-value">
+														{paymentPendingReview.confirmation_number}
+													</b>
+												</>
+											) : null}
+										</span>
+									}
+								/>
+							) : conversionError ? (
 								<Alert type="error" showIcon message={labels.conversionUnavailable} />
 							) : paypalLoading || conversionLoading ? (
 								<div className="paypal-loading">
@@ -1627,6 +1732,7 @@ export default function ClientPaymentLinkClient({
 										selectedUsdAmount={selectedUsdAmount}
 										totalUsdAmount={totalUsdAmount}
 										onPayApproved={handlePayApproved}
+										onPaymentPendingReview={showPaymentPendingReview}
 										onValidationError={showValidationError}
 										walletOnly={walletOnly || !paypalToken?.clientToken}
 										onUseWalletOnly={() => setWalletOnly(true)}
@@ -1641,7 +1747,7 @@ export default function ClientPaymentLinkClient({
 							) : (
 								<Alert type="error" showIcon message={labels.paypalUnavailable} />
 							)}
-							{!canPreparePayment && !conversionError ? (
+							{!canPreparePayment && !conversionError && !paymentPendingReview ? (
 								<Button
 									type="primary"
 									size="large"

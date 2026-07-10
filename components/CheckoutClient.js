@@ -152,6 +152,8 @@ const truncatePayPalText = (value, max = 127) => {
 const buildPayPalInvoiceId = (confirmation = "") =>
 	`Jannat-${confirmation || "reservation"}-${Date.now().toString(36).slice(-6)}`.slice(0, 127);
 
+const PAYPAL_PENDING_REVIEW_CODE = "PAYPAL_CAPTURE_PENDING_REVIEW";
+
 const getPayPalMetadataId = () => {
 	try {
 		return window?.paypal?.getClientMetadataID?.() || null;
@@ -160,9 +162,28 @@ const getPayPalMetadataId = () => {
 	}
 };
 
+const isPayPalPendingReviewPayload = (payload) =>
+	Boolean(
+		payload?.paypalPendingReview ||
+			payload?.pendingReview ||
+			payload?.code === PAYPAL_PENDING_REVIEW_CODE
+	);
+
+const pendingReviewCopy = (isArabic) => ({
+	title: isArabic
+		? "\u0627\u0644\u062f\u0641\u0639 \u0642\u064a\u062f \u0645\u0631\u0627\u062c\u0639\u0629 PayPal"
+		: "Payment Is Under PayPal Review",
+	description: isArabic
+		? "\u0644\u0645 \u064a\u062a\u0645 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062d\u062c\u0632 \u0623\u0648 \u062a\u0633\u062c\u064a\u0644\u0647 \u0643\u0645\u062f\u0641\u0648\u0639 \u0628\u0639\u062f. \u064a\u0631\u062c\u0649 \u0639\u062f\u0645 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u062f\u0641\u0639. \u0633\u064a\u062a\u0627\u0628\u0639 \u0641\u0631\u064a\u0642 \u062c\u0646\u0627\u062a \u0628\u0648\u0643\u064a\u0646\u062c \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629 \u0648\u064a\u0624\u0643\u062f \u0644\u0643 \u0628\u0645\u062c\u0631\u062f \u0627\u0643\u062a\u0645\u0627\u0644\u0647\u0627."
+		: "The reservation is not confirmed as paid yet. Please do not retry or submit another payment. Jannat Booking will follow this PayPal review and confirm once it is completed.",
+});
+
 const paypalErrorMessage = (error, isArabic, fallbackType = "payment") => {
 	const raw = String(error?.response?.message || error?.message || error?.name || "").trim();
 	const normalized = raw.toUpperCase();
+	if (isPayPalPendingReviewPayload(error?.response || error)) {
+		return pendingReviewCopy(isArabic).description;
+	}
 	if (normalized.includes("INSTRUMENT_DECLINED") || normalized.includes("DECLINED")) {
 		return isArabic
 			? "\u062a\u0645 \u0631\u0641\u0636 \u0648\u0633\u064a\u0644\u0629 \u0627\u0644\u062f\u0641\u0639. \u064a\u0631\u062c\u0649 \u062a\u062c\u0631\u0628\u0629 \u0628\u0637\u0627\u0642\u0629 \u0623\u062e\u0631\u0649 \u0623\u0648 \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0628\u0646\u0643."
@@ -657,6 +678,7 @@ function JannatPayPalButtons({
 	onUseWalletOnly,
 	onReloadPayment,
 	onValidationError,
+	onPaymentPendingReview,
 	selectedCurrency = "sar",
 	formatCurrency,
 }) {
@@ -762,6 +784,26 @@ function JannatPayPalButtons({
 			};
 		}
 	}, []);
+
+	const handlePendingReview = useCallback(
+		(payload) => {
+			const reviewPayload = payload?.response || payload || {};
+			pendingRef.current = {
+				pendingReservationId: null,
+				confirmation_number: null,
+				invoice_id: null,
+				payload: null,
+			};
+			onPaymentPendingReview?.(reviewPayload);
+			message.open({
+				key: "checkout-payment-review",
+				type: "warning",
+				content: pendingReviewCopy(isArabic).description,
+				duration: 8,
+			});
+		},
+		[isArabic, message, onPaymentPendingReview]
+	);
 
 	useEffect(() => () => cancelPending(), [cancelPending]);
 
@@ -980,6 +1022,10 @@ function JannatPayPalButtons({
 				payload: null,
 			};
 		} catch (error) {
+			if (isPayPalPendingReviewPayload(error?.response || error)) {
+				handlePendingReview(error?.response || error);
+				return;
+			}
 			await cancelPending();
 			message.error(error?.message || (isArabic ? "تعذر إتمام الدفع." : "Payment could not be completed."));
 		}
@@ -1030,6 +1076,10 @@ function JannatPayPalButtons({
 				onApprove={onApprove}
 				onCancel={cancelPending}
 				onError={async (error) => {
+					if (isPayPalPendingReviewPayload(error?.response || error)) {
+						handlePendingReview(error?.response || error);
+						return;
+					}
 					await cancelPending();
 					if (!shouldSuppressPaymentError(error)) {
 						message.open({
@@ -1051,6 +1101,10 @@ function JannatPayPalButtons({
 				onApprove={onApprove}
 				onCancel={cancelPending}
 				onError={async (error) => {
+					if (isPayPalPendingReviewPayload(error?.response || error)) {
+						handlePendingReview(error?.response || error);
+						return;
+					}
 					await cancelPending();
 					if (!shouldSuppressPaymentError(error)) {
 						message.open({
@@ -1091,6 +1145,10 @@ function JannatPayPalButtons({
 							createOrder={createOrder}
 							onApprove={onApprove}
 							onError={async (error) => {
+								if (isPayPalPendingReviewPayload(error?.response || error)) {
+									handlePendingReview(error?.response || error);
+									return;
+								}
 								await cancelPending();
 								if (!shouldSuppressPaymentError(error)) {
 									message.open({
@@ -1212,6 +1270,7 @@ export default function CheckoutClient({ website = {} }) {
 	const [paypalReloadKey, setPaypalReloadKey] = useState(0);
 	const [applePayCapable, setApplePayCapable] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
+	const [paypalPendingReview, setPaypalPendingReview] = useState(null);
 
 	const totalSar = useMemo(() => cartTotal(cart), [cart]);
 	const totalRooms = useMemo(() => cartRoomsCount(cart), [cart]);
@@ -1266,6 +1325,7 @@ export default function CheckoutClient({ website = {} }) {
 		}
 	}, [totalSar]);
 	const handlePaymentOptionChange = useCallback((nextPaymentOption) => {
+		if (paypalPendingReview) return;
 		setSelectedPaymentOption(nextPaymentOption);
 		trackConversion(
 			"paymentOption",
@@ -1278,7 +1338,12 @@ export default function CheckoutClient({ website = {} }) {
 			["Selected Payment Option"]
 		);
 		setCheckoutIssue((current) => (current?.field === "paymentOption" ? null : current));
-	}, [totalSar]);
+	}, [paypalPendingReview, totalSar]);
+
+	const showPayPalPendingReview = useCallback((payload = {}) => {
+		setPaypalPendingReview(payload || {});
+		setSubmitting(false);
+	}, []);
 
 	useEffect(() => {
 		if (!cart.length || !totalSar) return;
@@ -1645,6 +1710,16 @@ export default function CheckoutClient({ website = {} }) {
 			confirmation_number: paypalPayload.confirmation_number,
 			paypal: paypalPayload.paypal,
 		});
+		if (isPayPalPendingReviewPayload(response)) {
+			showPayPalPendingReview(response);
+			message.open({
+				key: "checkout-payment-review",
+				type: "warning",
+				content: pendingReviewCopy(isArabic).description,
+				duration: 8,
+			});
+			return;
+		}
 		message.success(response?.message || (isArabic ? "تم إنشاء الحجز بنجاح." : "Reservation created successfully."));
 		const reservation = response?.data || response?.reservation || {};
 		const accountSession = response?.accountSession;
@@ -1854,7 +1929,27 @@ export default function CheckoutClient({ website = {} }) {
 							{isArabic ? "أوافق على الشروط والأحكام" : "I accept the Terms & Conditions"}
 						</Checkbox>
 					</div>
-					{selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
+					{paypalPendingReview ? (
+						<Alert
+							type="warning"
+							showIcon
+							className="checkout-payment-review-alert"
+							message={pendingReviewCopy(isArabic).title}
+							description={
+								<span>
+									{pendingReviewCopy(isArabic).description}
+									{paypalPendingReview.confirmation_number ? (
+										<>
+											{" "}
+											<b dir="ltr" className="ltr-value">
+												{paypalPendingReview.confirmation_number}
+											</b>
+										</>
+									) : null}
+								</span>
+							}
+						/>
+					) : selectedPaymentOption === "acceptReserveNowPayInHotel" ? (
 						<Button
 							type="primary"
 							size="large"
@@ -1897,6 +1992,7 @@ export default function CheckoutClient({ website = {} }) {
 								onPayApproved={handlePayPalApproved}
 								onTouched={createUncompletedDocument}
 								onValidationError={showCheckoutValidationError}
+								onPaymentPendingReview={showPayPalPendingReview}
 								selectedCurrency={currency}
 								formatCurrency={formatCurrency}
 								walletOnly={paypalWalletOnly || !paypalToken?.clientToken}
