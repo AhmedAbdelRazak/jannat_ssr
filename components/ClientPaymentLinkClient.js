@@ -27,7 +27,7 @@ import {
 	ShieldCheck,
 	UserRound,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createPayPalOrder,
 	currencyConversion,
@@ -191,6 +191,35 @@ const readPayPalCardFieldsStatus = () => {
 	}
 	return "ready";
 };
+
+const canRenderPayPalCardFields = () =>
+	typeof window !== "undefined" && Boolean(window?.paypal?.CardFields);
+
+class PayPalCardFieldsErrorBoundary extends Component {
+	constructor(props) {
+		super(props);
+		this.state = { hasError: false };
+	}
+
+	static getDerivedStateFromError() {
+		return { hasError: true };
+	}
+
+	componentDidCatch(error) {
+		console.warn("PayPal card fields could not render:", error?.message || error);
+	}
+
+	componentDidUpdate(previousProps) {
+		if (previousProps.resetKey !== this.props.resetKey && this.state.hasError) {
+			this.setState({ hasError: false });
+		}
+	}
+
+	render() {
+		if (this.state.hasError) return this.props.fallback || null;
+		return this.props.children;
+	}
+}
 
 function usePayPalCardFieldsStatus(isResolved, walletOnly, retryKey) {
 	const [status, setStatus] = useState("checking");
@@ -833,6 +862,17 @@ function ClientPaymentButtons({
 			selectedCurrency={selectedCurrency}
 		/>
 	);
+	const cardFieldsUnavailableAlert = (
+		<Alert
+			type="info"
+			showIcon
+			className="paypal-card-fields-unavailable"
+			message={labels.cardUnavailable}
+			description={labels.cardUnavailableCopy}
+		/>
+	);
+	const inlineCardFieldsReady = cardFieldsStatus === "ready" && canRenderPayPalCardFields();
+	const cardFieldsResetKey = `${buttonsForceReRender.join("|")}-${cardFieldsStatus}`;
 	const trackPaymentAttempt = (paymentSurface) => {
 		trackConversion(
 			"paymentClick",
@@ -929,7 +969,7 @@ function ClientPaymentButtons({
 				chargeLabel={chargeLabel}
 			/>
 			{isResolved && !walletOnly ? (
-				cardFieldsStatus === "ready" ? (
+				inlineCardFieldsReady ? (
 					<div className="paypal-card-fields-panel" dir={isArabic ? "rtl" : "ltr"}>
 						<div className="paypal-card-fields-head">
 							<CreditCard size={18} />
@@ -938,30 +978,34 @@ function ClientPaymentButtons({
 								<span>{labels.cardCopy}</span>
 							</div>
 						</div>
-						<PayPalCardFieldsProvider
-							createOrder={createOrder}
-							onApprove={onApprove}
-							onError={(error) => {
-								if (isPayPalPendingReviewPayload(error?.response || error)) {
-									onPaymentPendingReview?.(error?.response || error);
-									message.open({
-										key: "client-payment-review",
-										type: "warning",
-										content: paymentPendingReviewCopy(isArabic).description,
-										duration: 8,
-									});
-									return;
-								}
-								if (!shouldSuppressPaymentError(error)) {
-									message.open({
-										key: "client-payment-error",
-										type: "error",
-										content: error?.message || labels.paymentFailed,
-										duration: 5,
-									});
-								}
-							}}
+						<PayPalCardFieldsErrorBoundary
+							resetKey={cardFieldsResetKey}
+							fallback={cardFieldsUnavailableAlert}
 						>
+							<PayPalCardFieldsProvider
+								createOrder={createOrder}
+								onApprove={onApprove}
+								onError={(error) => {
+									if (isPayPalPendingReviewPayload(error?.response || error)) {
+										onPaymentPendingReview?.(error?.response || error);
+										message.open({
+											key: "client-payment-review",
+											type: "warning",
+											content: paymentPendingReviewCopy(isArabic).description,
+											duration: 8,
+										});
+										return;
+									}
+									if (!shouldSuppressPaymentError(error)) {
+										message.open({
+											key: "client-payment-error",
+											type: "error",
+											content: error?.message || labels.paymentFailed,
+											duration: 5,
+										});
+									}
+								}}
+							>
 							<PayPalCardFieldsForm>
 								<div className="paypal-card-field full">
 									<label>{isArabic ? "اسم حامل البطاقة" : "Cardholder name"}</label>
@@ -1001,7 +1045,8 @@ function ClientPaymentButtons({
 								onBeforeSubmit={validateBeforePay}
 								shouldSuppressError={shouldSuppressPaymentError}
 							/>
-						</PayPalCardFieldsProvider>
+							</PayPalCardFieldsProvider>
+						</PayPalCardFieldsErrorBoundary>
 					</div>
 				) : cardFieldsStatus === "checking" ? (
 					<div className="paypal-card-fields-panel paypal-card-fields-loading" dir={isArabic ? "rtl" : "ltr"}>
@@ -1016,15 +1061,7 @@ function ClientPaymentButtons({
 							<Spin />
 						</div>
 					</div>
-				) : (
-					<Alert
-						type="info"
-						showIcon
-						className="paypal-card-fields-unavailable"
-						message={labels.cardUnavailable}
-						description={labels.cardUnavailableCopy}
-					/>
-				)
+				) : cardFieldsUnavailableAlert
 			) : null}
 		</div>
 	);

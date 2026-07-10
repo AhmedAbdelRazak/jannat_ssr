@@ -16,7 +16,7 @@ import {
 	usePayPalScriptReducer,
 } from "@paypal/react-paypal-js";
 import { BedDouble, CalendarDays, CreditCard, Hotel, ShieldCheck, ShoppingCart, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { trackConversion } from "../lib/analyticsEvents";
 import { COUNTRY_SELECT_OPTIONS } from "../lib/countries";
 import {
@@ -74,6 +74,35 @@ const readPayPalCardFieldsStatus = () => {
 	}
 	return "ready";
 };
+
+const canRenderPayPalCardFields = () =>
+	typeof window !== "undefined" && Boolean(window?.paypal?.CardFields);
+
+class PayPalCardFieldsErrorBoundary extends Component {
+	constructor(props) {
+		super(props);
+		this.state = { hasError: false };
+	}
+
+	static getDerivedStateFromError() {
+		return { hasError: true };
+	}
+
+	componentDidCatch(error) {
+		console.warn("PayPal card fields could not render:", error?.message || error);
+	}
+
+	componentDidUpdate(previousProps) {
+		if (previousProps.resetKey !== this.props.resetKey && this.state.hasError) {
+			this.setState({ hasError: false });
+		}
+	}
+
+	render() {
+		if (this.state.hasError) return this.props.fallback || null;
+		return this.props.children;
+	}
+}
 
 function usePayPalCardFieldsStatus(isResolved, walletOnly, retryKey) {
 	const [status, setStatus] = useState("checking");
@@ -1060,6 +1089,22 @@ function JannatPayPalButtons({
 		);
 	}
 
+	const cardFieldsUnavailableAlert = (
+		<Alert
+			type="info"
+			showIcon
+			className="paypal-card-fields-unavailable"
+			message={isArabic ? "\u0627\u0644\u062f\u0641\u0639 \u062f\u0627\u062e\u0644 \u0627\u0644\u0635\u0641\u062d\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0644\u0647\u0630\u0647 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629" : "Inline card fields are not available for this attempt"}
+			description={
+				isArabic
+					? "\u064a\u0631\u062c\u0649 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0632\u0631 \u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u062f\u0641\u0639 \u0623\u0639\u0644\u0627\u0647. \u0642\u062f \u064a\u062e\u062a\u0644\u0641 \u0638\u0647\u0648\u0631 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062d\u0633\u0628 \u0625\u0639\u062f\u0627\u062f\u0627\u062a PayPal\u060c \u0627\u0644\u0628\u0644\u062f\u060c \u0623\u0648 \u0627\u0644\u0645\u062a\u0635\u0641\u062d."
+					: "Please use the card payment button above. Card-field availability can vary by PayPal account, country, browser, or live configuration."
+			}
+		/>
+	);
+	const inlineCardFieldsReady = cardFieldsStatus === "ready" && canRenderPayPalCardFields();
+	const cardFieldsResetKey = `${buttonsForceReRender.join("|")}-${cardFieldsStatus}`;
+
 	return (
 		<div className="paypal-box">
 			<div className="amount-bar">
@@ -1132,7 +1177,7 @@ function JannatPayPalButtons({
 				chargeLabel={payPalChargeNode}
 			/>
 			{isResolved && !walletOnly ? (
-				cardFieldsStatus === "ready" ? (
+				inlineCardFieldsReady ? (
 					<div className="paypal-card-fields-panel" dir={isArabic ? "rtl" : "ltr"}>
 						<div className="paypal-card-fields-head">
 							<CreditCard size={18} />
@@ -1141,69 +1186,74 @@ function JannatPayPalButtons({
 								<span>{isArabic ? "\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062a\u062f\u062e\u0644 \u062f\u0627\u062e\u0644 \u062d\u0642\u0648\u0644 PayPal \u0627\u0644\u0622\u0645\u0646\u0629." : "Card details stay inside PayPal secure fields."}</span>
 							</div>
 						</div>
-						<PayPalCardFieldsProvider
-							createOrder={createOrder}
-							onApprove={onApprove}
-							onError={async (error) => {
-								if (isPayPalPendingReviewPayload(error?.response || error)) {
-									handlePendingReview(error?.response || error);
-									return;
-								}
-								await cancelPending();
-								if (!shouldSuppressPaymentError(error)) {
-									message.open({
-										key: "checkout-payment-error",
-										type: "error",
-										content: paypalErrorMessage(error, isArabic, "card"),
-										duration: 4,
-									});
-								}
-							}}
+						<PayPalCardFieldsErrorBoundary
+							resetKey={cardFieldsResetKey}
+							fallback={cardFieldsUnavailableAlert}
 						>
-							<PayPalCardFieldsForm>
-								<div className="paypal-card-field full">
-									<label>{isArabic ? "\u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Cardholder name"}</label>
-									<div className="paypal-hosted-field">
-										<PayPalNameField />
-									</div>
-								</div>
-								<div className="paypal-card-field full">
-									<label>{isArabic ? "\u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Card number"}</label>
-									<div className="paypal-hosted-field">
-										<PayPalNumberField />
-									</div>
-								</div>
-								<div className="paypal-card-fields-row">
-									<div className="paypal-card-field">
-										<label>{isArabic ? "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621" : "Expiry date"}</label>
-										<div className="paypal-hosted-field">
-											<PayPalExpiryField />
-										</div>
-									</div>
-									<div className="paypal-card-field">
-										<label>{isArabic ? "\u0631\u0645\u0632 CVV" : "CVV"}</label>
-										<div className="paypal-hosted-field">
-											<PayPalCVVField />
-										</div>
-									</div>
-								</div>
-							</PayPalCardFieldsForm>
-							<CardFieldsSubmitButton
-								allowInteract={allowInteract}
-								labels={{
-									pay: isArabic
-										? `\u0627\u062f\u0641\u0639 ${payButtonAmountLabel} \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629`
-										: `Pay ${payButtonAmountLabel} by card`,
-									processing: isArabic ? "\u062c\u0627\u0631\u064a \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u062f\u0641\u0639..." : "Processing payment...",
-									incomplete: isArabic
-										? "\u064a\u0631\u062c\u0649 \u0625\u0643\u0645\u0627\u0644 \u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621\u060c \u0648\u0631\u0645\u0632 CVV."
-										: "Please complete the cardholder name, card number, expiry date, and CVV.",
-									failed: paypalErrorMessage(null, isArabic, "card"),
+							<PayPalCardFieldsProvider
+								createOrder={createOrder}
+								onApprove={onApprove}
+								onError={async (error) => {
+									if (isPayPalPendingReviewPayload(error?.response || error)) {
+										handlePendingReview(error?.response || error);
+										return;
+									}
+									await cancelPending();
+									if (!shouldSuppressPaymentError(error)) {
+										message.open({
+											key: "checkout-payment-error",
+											type: "error",
+											content: paypalErrorMessage(error, isArabic, "card"),
+											duration: 4,
+										});
+									}
 								}}
-								onBeforeSubmit={validateCardSubmitReadiness}
-								shouldSuppressError={shouldSuppressPaymentError}
-							/>
-						</PayPalCardFieldsProvider>
+							>
+								<PayPalCardFieldsForm>
+									<div className="paypal-card-field full">
+										<label>{isArabic ? "\u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Cardholder name"}</label>
+										<div className="paypal-hosted-field">
+											<PayPalNameField />
+										</div>
+									</div>
+									<div className="paypal-card-field full">
+										<label>{isArabic ? "\u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629" : "Card number"}</label>
+										<div className="paypal-hosted-field">
+											<PayPalNumberField />
+										</div>
+									</div>
+									<div className="paypal-card-fields-row">
+										<div className="paypal-card-field">
+											<label>{isArabic ? "\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621" : "Expiry date"}</label>
+											<div className="paypal-hosted-field">
+												<PayPalExpiryField />
+											</div>
+										</div>
+										<div className="paypal-card-field">
+											<label>{isArabic ? "\u0631\u0645\u0632 CVV" : "CVV"}</label>
+											<div className="paypal-hosted-field">
+												<PayPalCVVField />
+											</div>
+										</div>
+									</div>
+								</PayPalCardFieldsForm>
+								<CardFieldsSubmitButton
+									allowInteract={allowInteract}
+									labels={{
+										pay: isArabic
+											? `\u0627\u062f\u0641\u0639 ${payButtonAmountLabel} \u0628\u0627\u0644\u0628\u0637\u0627\u0642\u0629`
+											: `Pay ${payButtonAmountLabel} by card`,
+										processing: isArabic ? "\u062c\u0627\u0631\u064a \u0645\u0639\u0627\u0644\u062c\u0629 \u0627\u0644\u062f\u0641\u0639..." : "Processing payment...",
+										incomplete: isArabic
+											? "\u064a\u0631\u062c\u0649 \u0625\u0643\u0645\u0627\u0644 \u0627\u0633\u0645 \u062d\u0627\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u0631\u0642\u0645 \u0627\u0644\u0628\u0637\u0627\u0642\u0629\u060c \u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0627\u0646\u062a\u0647\u0627\u0621\u060c \u0648\u0631\u0645\u0632 CVV."
+											: "Please complete the cardholder name, card number, expiry date, and CVV.",
+										failed: paypalErrorMessage(null, isArabic, "card"),
+									}}
+									onBeforeSubmit={validateCardSubmitReadiness}
+									shouldSuppressError={shouldSuppressPaymentError}
+								/>
+							</PayPalCardFieldsProvider>
+						</PayPalCardFieldsErrorBoundary>
 					</div>
 				) : cardFieldsStatus === "checking" ? (
 					<div className="paypal-card-fields-panel paypal-card-fields-loading" dir={isArabic ? "rtl" : "ltr"}>
@@ -1218,19 +1268,7 @@ function JannatPayPalButtons({
 							<Spin />
 						</div>
 					</div>
-				) : (
-					<Alert
-						type="info"
-						showIcon
-						className="paypal-card-fields-unavailable"
-						message={isArabic ? "\u0627\u0644\u062f\u0641\u0639 \u062f\u0627\u062e\u0644 \u0627\u0644\u0635\u0641\u062d\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0644\u0647\u0630\u0647 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629" : "Inline card fields are not available for this attempt"}
-						description={
-							isArabic
-								? "\u064a\u0631\u062c\u0649 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0632\u0631 \u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u062f\u0641\u0639 \u0623\u0639\u0644\u0627\u0647. \u0642\u062f \u064a\u062e\u062a\u0644\u0641 \u0638\u0647\u0648\u0631 \u062d\u0642\u0648\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062d\u0633\u0628 \u0625\u0639\u062f\u0627\u062f\u0627\u062a PayPal\u060c \u0627\u0644\u0628\u0644\u062f\u060c \u0623\u0648 \u0627\u0644\u0645\u062a\u0635\u0641\u062d."
-								: "Please use the card payment button above. Card-field availability can vary by PayPal account, country, browser, or sandbox/live configuration."
-						}
-					/>
-				)
+				) : cardFieldsUnavailableAlert
 			) : null}
 		</div>
 	);
