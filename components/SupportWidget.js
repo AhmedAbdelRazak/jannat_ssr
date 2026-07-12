@@ -1163,6 +1163,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const [notice, setNotice] = useState("");
 	const [typingStatus, setTypingStatus] = useState("");
 	const [typingStatusIsAi, setTypingStatusIsAi] = useState(false);
+	const [typingProgressKey, setTypingProgressKey] = useState("");
 	const [emojiOpen, setEmojiOpen] = useState(false);
 	const [isGuestTypingLocal, setIsGuestTypingLocal] = useState(false);
 	const [ratingVisible, setRatingVisible] = useState(false);
@@ -1172,6 +1173,8 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const socketRef = useRef(null);
 	const typingStatusTimerRef = useRef(null);
 	const localAiTypingDelayTimerRef = useRef(null);
+	const typingProgressKeyRef = useRef("");
+	const messagesRef = useRef([]);
 	const guestTypingTimerRef = useRef(null);
 	const chatStateHydratedRef = useRef(false);
 	const chatStateWriteReadyRef = useRef(false);
@@ -1245,6 +1248,9 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 	const chatHeaderTitle = transferredCaseHotelName || hotelContextName || chatBrandName;
 	const chatHeaderSubtitle =
 		transferredCaseHotelName || hotelContext ? receptionChatLabel : chatCopy.hotelSupport;
+	useEffect(() => {
+		messagesRef.current = messages;
+	}, [messages]);
 	const topics = useMemo(
 		() =>
 			supportTopicOptions(isChatArabic).map((topic) => ({
@@ -1477,6 +1483,10 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 		(options = {}) => {
 			const targetCaseId = String(options.caseId || caseId || "").trim();
 			if (!targetCaseId || conversationEnded) return;
+			// A server-issued reservation progress notice is more authoritative than
+			// the generic local "typing" animation. Keep it until the final AI reply
+			// arrives or its own expiry timer fires.
+			if (typingProgressKeyRef.current) return;
 			window.clearTimeout(localAiTypingDelayTimerRef.current);
 			window.clearTimeout(typingStatusTimerRef.current);
 			guestTypingLocalRef.current = false;
@@ -1514,6 +1524,26 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			latestAiResponderName,
 		]
 	);
+
+	const clearReservationProgressForIncomingAi = useCallback((incoming = []) => {
+		if (!typingProgressKeyRef.current || !Array.isArray(incoming)) return;
+		const knownMessageKeys = new Set(
+			messagesRef.current.map((message) => String(messageKey(message)))
+		);
+		const hasUnseenAiReply = incoming.some(
+			(message) =>
+				message?.isAi === true &&
+				!message?.isSystem &&
+				!knownMessageKeys.has(String(messageKey(message)))
+		);
+		if (!hasUnseenAiReply) return;
+		window.clearTimeout(localAiTypingDelayTimerRef.current);
+		window.clearTimeout(typingStatusTimerRef.current);
+		typingProgressKeyRef.current = "";
+		setTypingProgressKey("");
+		setTypingStatus("");
+		setTypingStatusIsAi(false);
+	}, []);
 
 	const createSupportCaseFromMessage = useCallback(
 		async (initialMessage = "", options = {}) => {
@@ -1709,6 +1739,8 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 		setReply("");
 		setTypingStatus("");
 		setTypingStatusIsAi(false);
+		setTypingProgressKey("");
+		typingProgressKeyRef.current = "";
 		setEmojiOpen(false);
 		setRatingVisible(false);
 		setConversationEnded(false);
@@ -1880,6 +1912,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				if (!cancelled && data?.caseStatus === "closed") {
 					setCaseMeta(data);
 					if (Array.isArray(data?.conversation)) {
+						clearReservationProgressForIncomingAi(data.conversation);
 						setMessages((current) => mergeConversationMessages(current, data.conversation));
 					}
 					setConversationEnded(true);
@@ -1890,6 +1923,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				}
 				if (!cancelled && Array.isArray(data?.conversation)) {
 					setCaseMeta(data);
+					clearReservationProgressForIncomingAi(data.conversation);
 					setMessages((current) => mergeConversationMessages(current, data.conversation));
 				}
 			} catch (err) {
@@ -1902,7 +1936,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			cancelled = true;
 			clearInterval(timer);
 		};
-	}, [caseId, conversationEnded, open, resetCaseState, chatCopy.chatClosed, writeChatQuery]);
+	}, [caseId, clearReservationProgressForIncomingAi, conversationEnded, open, resetCaseState, chatCopy.chatClosed, writeChatQuery]);
 
 	useEffect(() => {
 		if (!caseId || !open || conversationEnded) return undefined;
@@ -1913,6 +1947,9 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			if (message.caseId && String(message.caseId) !== String(caseId)) return;
 			if (message.isAi === true) {
 				window.clearTimeout(localAiTypingDelayTimerRef.current);
+				window.clearTimeout(typingStatusTimerRef.current);
+				typingProgressKeyRef.current = "";
+				setTypingProgressKey("");
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
 			}
@@ -1921,28 +1958,42 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 		const onTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
 			const isAiTyping = data.isAi === true;
+			const explicitStatus = isAiTyping ? String(data.statusText || "").trim() : "";
+			const progressKey = isAiTyping ? String(data.progressKey || "").trim() : "";
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && guestTypingLocalRef.current) return;
+			if (!isAiTyping && typingProgressKeyRef.current) return;
 			if (isAiTyping) {
 				window.clearTimeout(localAiTypingDelayTimerRef.current);
-				if (guestTypingLocalRef.current) return;
+				if (typingProgressKeyRef.current && !progressKey) return;
+				if (guestTypingLocalRef.current && !explicitStatus && !progressKey) return;
 			}
 			const typingName =
 				data.name || (isAiTyping && caseMeta?.aiResponderName) || chatBrandName;
 			setTypingStatus(
-				typingStatusText({
-					name: typingName,
-					isAi: isAiTyping,
-					languageName,
-					fallback: chatCopy.isTyping,
-				})
+				explicitStatus ||
+					typingStatusText({
+						name: typingName,
+						isAi: isAiTyping,
+						languageName,
+						fallback: chatCopy.isTyping,
+					})
 			);
 			setTypingStatusIsAi(isAiTyping);
+			typingProgressKeyRef.current = progressKey;
+			setTypingProgressKey(progressKey);
 			window.clearTimeout(typingStatusTimerRef.current);
 			typingStatusTimerRef.current = window.setTimeout(() => {
+				if (progressKey && typingProgressKeyRef.current !== progressKey) return;
+				typingProgressKeyRef.current = "";
+				setTypingProgressKey("");
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
-			}, isAiTyping ? LOCAL_AI_TYPING_VISIBLE_MS : 4500);
+			}, explicitStatus
+				? Math.max(5000, Math.min(90000, Number(data.expiresInMs || 60000) || 60000))
+				: isAiTyping
+				? LOCAL_AI_TYPING_VISIBLE_MS
+				: 4500);
 		};
 		const onStopTyping = (data = {}) => {
 			if (data.caseId && String(data.caseId) !== String(caseId)) return;
@@ -1950,6 +2001,9 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			if (!isAiTyping && data.name && data.name === form.name) return;
 			if (!isAiTyping && !data.name) return;
 			if (isAiTyping) window.clearTimeout(localAiTypingDelayTimerRef.current);
+			if (isAiTyping && typingProgressKeyRef.current) return;
+			typingProgressKeyRef.current = "";
+			setTypingProgressKey("");
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 		};
@@ -1966,6 +2020,9 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			setRatingVisible(true);
 			setEmojiOpen(false);
 			window.clearTimeout(localAiTypingDelayTimerRef.current);
+			window.clearTimeout(typingStatusTimerRef.current);
+			typingProgressKeyRef.current = "";
+			setTypingProgressKey("");
 			setTypingStatus("");
 			setTypingStatusIsAi(false);
 			setNotice("");
@@ -1975,6 +2032,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			if (!updatedCaseId || updatedCaseId !== String(caseId)) return;
 			setCaseMeta(updatedCase);
 			if (Array.isArray(updatedCase.conversation)) {
+				clearReservationProgressForIncomingAi(updatedCase.conversation);
 				setMessages((current) => mergeConversationMessages(current, updatedCase.conversation));
 			}
 			if (updatedCase.caseStatus === "closed") {
@@ -2021,7 +2079,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			}
 			socketRef.current = null;
 		};
-	}, [caseId, caseMeta?.aiResponderName, conversationEnded, form.name, open, resetCaseState, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping, languageName]);
+	}, [caseId, caseMeta?.aiResponderName, chatBrandName, chatCopy.chatClosed, chatCopy.isTyping, clearReservationProgressForIncomingAi, conversationEnded, form.name, languageName, open, resetCaseState]);
 
 	const scrollToBottom = useCallback((behavior = "smooth") => {
 		const container = messagesContainerRef.current;
@@ -2075,7 +2133,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 		if (!socket || !caseId || conversationEnded) return;
 		if (value) {
 			window.clearTimeout(localAiTypingDelayTimerRef.current);
-			if (typingStatusIsAi) {
+			if (typingStatusIsAi && !typingProgressKeyRef.current) {
 				window.clearTimeout(typingStatusTimerRef.current);
 				setTypingStatus("");
 				setTypingStatusIsAi(false);
@@ -2304,6 +2362,7 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 			reply,
 			typingStatus,
 			typingStatusIsAi,
+			typingProgressKey,
 			conversationEnded,
 			ratingVisible,
 		};
@@ -2333,6 +2392,8 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 				setReply(previousState.reply);
 				setTypingStatus(previousState.typingStatus);
 				setTypingStatusIsAi(previousState.typingStatusIsAi);
+				typingProgressKeyRef.current = previousState.typingProgressKey;
+				setTypingProgressKey(previousState.typingProgressKey);
 				setConversationEnded(previousState.conversationEnded || true);
 				setRatingVisible(previousState.ratingVisible || true);
 				setNotice("");
@@ -2473,11 +2534,6 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 									const messageDirection = messageTextDirection(text);
 									const bubbleDirection =
 										messageDirection === "auto" ? (isChatArabic ? "rtl" : "ltr") : messageDirection;
-									const quickReplies = quickRepliesForMessage(message);
-									const showQuickReplies =
-										!isGuest &&
-										quickReplies.length > 0 &&
-										latestQuickReplySet.index === index;
 									if (isTransferNoticeMessage(message)) {
 										return (
 											<div
@@ -2504,25 +2560,14 @@ export default function SupportWidget({ hotels = [], supportConfig = {} }) {
 											<div className="message-content" dir={bubbleDirection}>
 												{renderMessageContent(text)}
 											</div>
-											{showQuickReplies ? (
-												<div className="quick-replies">
-													{quickReplies.map((quickReply) => (
-														<button
-															key={`${quickReply.action || quickReply.label}-${quickReply.value}`}
-															type="button"
-															className="quick-reply"
-															onClick={() => handleQuickReply(quickReply)}
-															disabled={closingChat || sendingReply}
-														>
-															{brandText(quickReply.label, isChatArabic)}
-														</button>
-													))}
-												</div>
-											) : null}
 										</div>
 									);
 								})}
-								{typingStatus && !isGuestTypingLocal ? <div className="typing-line">{typingStatus}</div> : null}
+								{typingStatus && (!isGuestTypingLocal || typingProgressKey) ? (
+									<div className="typing-line" role="status" aria-live="polite">
+										{typingStatus}
+									</div>
+								) : null}
 								<div ref={messagesEndRef} />
 							</div>
 							{!conversationEnded && latestQuickReplySet.replies.length > 0 ? (
