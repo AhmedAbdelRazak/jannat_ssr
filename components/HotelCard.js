@@ -30,6 +30,7 @@ import {
 import { DEFAULT_HERO_IMAGE } from "../lib/constants";
 import { trackConversion } from "../lib/analyticsEvents";
 import { drivingDistance, firstImage, hotelLocation, isUsableImage, slugifyHotel, titleCase, walkingDistanceOnly } from "../lib/format";
+import { resolveHotelRating } from "../lib/hotelRatings.mjs";
 import { roomTypeCountLabel } from "../lib/roomLabels";
 import { openJannatSupport } from "../lib/support";
 import OptimizedImage from "./OptimizedImage";
@@ -115,7 +116,7 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 		isArabic && hotel.hotelName_OtherLanguage
 			? hotel.hotelName_OtherLanguage
 			: titleCase(hotel.hotelName);
-	const rating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const { rating, ratingCount, hasRealRating } = resolveHotelRating(hotel);
 	const showDrivingDistance = driving && driving !== walking;
 	const labels = {
 		perNight: isArabic ? "/ \u0644\u064a\u0644\u0629" : "/ night",
@@ -257,8 +258,41 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 					<span className="hotel-card-brand">Jannat</span>
 				</div>
 
-				<div className="hotel-card-rating" aria-label={`${rating.toFixed(1)} stars`}>
-					<span>{isArabic ? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0641\u0646\u062f\u0642" : "Hotel rating"}</span>
+				<div
+					className="hotel-card-rating"
+					role="img"
+					aria-label={
+						hasRealRating
+							? isArabic
+								? `${rating.toFixed(1)} من 5 بناءً على ${ratingCount} ${ratingCount === 1 ? "تقييم" : "تقييمات"} من الضيوف`
+								: `${rating.toFixed(1)} out of 5 from ${ratingCount} guest ${ratingCount === 1 ? "rating" : "ratings"}`
+							: isArabic
+								? `فندق بتقييم ${rating.toFixed(1)} نجوم`
+								: `${rating.toFixed(1)} star hotel`
+					}
+				>
+					<span>
+						{hasRealRating
+							? isArabic
+								? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0636\u064a\u0648\u0641"
+								: "Guest rating"
+							: isArabic
+								? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0641\u0646\u062f\u0642"
+								: "Hotel rating"}
+						{hasRealRating ? (
+							<>
+								{" "}
+								<bdi dir="ltr">{rating.toFixed(1)}</bdi>
+								{" \u00b7 "}
+								<bdi dir="ltr">{ratingCount}</bdi>{" "}
+								{isArabic
+									? "\u062a\u0642\u064a\u064a\u0645"
+									: ratingCount === 1
+										? "rating"
+										: "ratings"}
+							</>
+						) : null}
+					</span>
 					<div>
 						{[0, 1, 2, 3, 4].map((index) => (
 							<Star

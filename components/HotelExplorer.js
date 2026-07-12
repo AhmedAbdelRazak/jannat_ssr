@@ -11,6 +11,7 @@ import {
 	hotelDestinationOptions,
 	normalizeHotelDestination,
 } from "../lib/hotelLocations";
+import { compareHotelsByRating } from "../lib/hotelRatings.mjs";
 import CurrencySelector from "./CurrencySelector";
 import { useJannatApp } from "./JannatAppProvider";
 
@@ -90,7 +91,7 @@ export default function HotelExplorer({ hotels = [], initialDestination = DEFAUL
 			.sort((first, second) => {
 				if (sort === "price") return minPrice(first) - minPrice(second);
 				if (sort === "distance") return parseDistance(walkingDistance(first)) - parseDistance(walkingDistance(second));
-				return Number(second.hotelRating || 0) - Number(first.hotelRating || 0);
+				return compareHotelsByRating(first, second);
 			});
 	}, [destination, hotels, query, sort]);
 	const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

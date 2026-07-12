@@ -33,14 +33,20 @@ const responseHeaders = (contentType) => ({
 	"X-Robots-Tag": "noindex, noimageindex",
 });
 
-const serveAsset = async (params, headOnly = false) => {
+const safeAssetVersion = (request) => {
+	const version = String(request?.nextUrl?.searchParams?.get("v") || "").trim();
+	return /^[A-Za-z0-9._-]{1,80}$/.test(version) ? version : "";
+};
+
+const serveAsset = async (request, params, headOnly = false) => {
 	const segments = safeSegments(params?.path);
 	if (!segments.length || segments.length !== (params?.path || []).length) {
 		return new NextResponse("Not found", { status: 404 });
 	}
 
 	const assetPath = segments.map(encodeURIComponent).join("/");
-	const upstreamUrl = `${SOURCE_ORIGIN}/assets/${assetPath}`;
+	const version = safeAssetVersion(request);
+	const upstreamUrl = `${SOURCE_ORIGIN}/assets/${assetPath}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
 	const upstream = await fetch(upstreamUrl, {
 		headers: { "User-Agent": "jannatbookingAssetProxy/1.0" },
 		next: { revalidate: 31536000 },
@@ -57,10 +63,10 @@ const serveAsset = async (params, headOnly = false) => {
 	});
 };
 
-export async function GET(_request, { params }) {
-	return serveAsset(await params);
+export async function GET(request, { params }) {
+	return serveAsset(request, await params);
 }
 
-export async function HEAD(_request, { params }) {
-	return serveAsset(await params, true);
+export async function HEAD(request, { params }) {
+	return serveAsset(request, await params, true);
 }

@@ -7,6 +7,7 @@ import {
 	PAYMENT_METHODS,
 } from "../../lib/constants";
 import { slugifyHotel, titleCase } from "../../lib/format";
+import { resolveHotelRating } from "../../lib/hotelRatings.mjs";
 
 export async function GET() {
 	const [hotels, dealHotels] = await Promise.all([getHotels(), getDealHotels()]);
@@ -17,7 +18,11 @@ export async function GET() {
 		.slice(0, 30)
 		.map((hotel) => {
 			const name = titleCase(hotel.hotelName);
-			return `- [${name}](${BRAND_URL}/single-hotel/${slugifyHotel(hotel.hotelName)})`;
+			const { rating, ratingCount, hasRealRating } = resolveHotelRating(hotel);
+			const ratingText = hasRealRating
+				? ` — Guest rating: ${rating.toFixed(1)}/5 from ${ratingCount} ${ratingCount === 1 ? "rating" : "ratings"}.`
+				: "";
+			return `- [${name}](${BRAND_URL}/single-hotel/${slugifyHotel(hotel.hotelName)})${ratingText}`;
 		})
 		.join("\n");
 
@@ -31,6 +36,9 @@ Trust and booking model:
 - Secure payment support includes ${PAYMENT_METHODS.join(", ")}.
 - Account password flows are designed around hashed authentication handling. Public receipt endpoints are sanitized and do not expose card data or account credentials.
 - Private checkout, payment, dashboard, reservation, and support-case URLs are intentionally excluded from indexing.
+
+Guest rating methodology:
+- Guest aggregates shown here are calculated from active user-submitted ratings; inactive ratings are excluded. A "Verified stay" badge appears on the hotel page only when the submission is matched to a reservation. A hotel without an active guest rating has no guest aggregate on this file, and its legacy hotel score is not presented as guest feedback.
 
 Primary public pages:
 - [Home](${BRAND_URL}/)
@@ -57,9 +65,9 @@ Privacy:
 `;
 
 	return new Response(body, {
-		headers: {
+			headers: {
 			"Content-Type": "text/markdown; charset=utf-8",
-			"Cache-Control": "public, max-age=3600, s-maxage=3600",
+			"Cache-Control": "public, max-age=300, s-maxage=300",
 		},
 	});
 }

@@ -112,7 +112,6 @@ export default function SingleHotelView({
 	const photos = compactPhotos(hotel);
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 	const [roomPage, setRoomPage] = useState(1);
-	const [preloadGallery, setPreloadGallery] = useState(false);
 	const [roomDates, setRoomDates] = useState(() => normalizeStayDates(dateOffset(1), dateOffset(4)));
 	const [activeSection, setActiveSection] = useState("overview");
 	const [reviewSummary, setReviewSummary] = useState(() =>
@@ -126,6 +125,7 @@ export default function SingleHotelView({
 		photos[0] ||
 		firstImage(hotel.hotelPhotos, hotel.roomCountDetails?.[0]?.photos, DEFAULT_HERO_IMAGE);
 	const galleryPhotos = photos.length ? photos : [heroImage].filter(Boolean);
+	const activeGalleryPhoto = galleryPhotos[activePhotoIndex] || galleryPhotos[0] || "";
 	const hotelName =
 		isArabic && hotel.hotelName_OtherLanguage
 			? hotel.hotelName_OtherLanguage
@@ -148,6 +148,13 @@ export default function SingleHotelView({
 	const fallbackRating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
 	const hasRealRating = reviewSummary.ratingCount > 0;
 	const rating = hasRealRating ? reviewSummary.averageRating : fallbackRating;
+	const ratingAccessibilityLabel = isArabic
+		? hasRealRating
+			? `\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0636\u064a\u0648\u0641 ${rating.toFixed(1)} \u0645\u0646 5\u060c \u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 ${reviewSummary.ratingCount} \u062a\u0642\u064a\u064a\u0645`
+			: `\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0646\u062f\u0642 ${rating.toFixed(1)} \u0645\u0646 5`
+		: hasRealRating
+			? `Guest rating ${rating.toFixed(1)} out of 5 from ${reviewSummary.ratingCount} ${reviewSummary.ratingCount === 1 ? "guest rating" : "guest ratings"}`
+			: `Hotel rating ${rating.toFixed(1)} out of 5`;
 	const mapDetails = hotelMapDetails(hotel, hotelName);
 	const hasDeals = hotelHasDeals(hotel);
 	const roomTotalPages = Math.max(1, Math.ceil(roomCount / PAGE_SIZE));
@@ -261,19 +268,6 @@ export default function SingleHotelView({
 		});
 	}, [activeSection, isArabic]);
 
-	useEffect(() => {
-		setPreloadGallery(false);
-		if (photos.length <= 1) return undefined;
-
-		if (typeof window.requestIdleCallback === "function") {
-			const handle = window.requestIdleCallback(() => setPreloadGallery(true));
-			return () => window.cancelIdleCallback?.(handle);
-		}
-
-		const handle = window.setTimeout(() => setPreloadGallery(true), 250);
-		return () => window.clearTimeout(handle);
-	}, [hotel._id, photos.length]);
-
 	const handleOpenChat = () => {
 		trackConversion(
 			"lead",
@@ -373,25 +367,19 @@ export default function SingleHotelView({
 							onTouchStart={handleGalleryTouchStart}
 							onTouchEnd={handleGalleryTouchEnd}
 						>
-							{galleryPhotos.map((photo, index) => {
-								const isActive = index === activePhotoIndex;
-								const shouldRender = preloadGallery || isActive || index === 0;
-								if (!shouldRender) return null;
-								return (
-									<OptimizedImage
-										key={`${photo}-main-${index}`}
-										className={`single-main-gallery-image${isActive ? " active" : ""}`}
-										src={photo}
-										alt={isActive ? hotelName : ""}
-										aria-hidden={isActive ? undefined : true}
-										fill
-										priority={index === 0}
-										loading={index === 0 ? undefined : "eager"}
-										decoding="async"
-										sizes="(max-width: 760px) calc(100vw - 24px), 1180px"
-									/>
-								);
-							})}
+							{activeGalleryPhoto ? (
+								<OptimizedImage
+									key={`${activeGalleryPhoto}-main`}
+									className="single-main-gallery-image active"
+									src={activeGalleryPhoto}
+									alt={hotelName}
+									fill
+									priority={activePhotoIndex === 0}
+									loading={activePhotoIndex === 0 ? undefined : "eager"}
+									decoding="async"
+									sizes="(max-width: 760px) calc(100vw - 24px), 1180px"
+								/>
+							) : null}
 							{photos.length > 1 ? (
 								<div className="single-gallery-controls">
 									<button type="button" onClick={showPreviousPhoto} aria-label="Previous photo">
@@ -430,13 +418,8 @@ export default function SingleHotelView({
 							<div className="single-hotel-rating-row">
 								<span
 									className="rating-pill"
-									aria-label={
-										isArabic
-											? `\u0627\u0644\u062a\u0642\u064a\u064a\u0645 ${rating.toFixed(1)} \u0645\u0646 5${
-													hasRealRating ? `\u060c \u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 ${reviewSummary.ratingCount} \u062a\u0642\u064a\u064a\u0645` : ""
-												}`
-											: `${rating.toFixed(1)} out of 5${hasRealRating ? ` from ${reviewSummary.ratingCount} guest ratings` : ""}`
-									}
+									role="img"
+									aria-label={ratingAccessibilityLabel}
 								>
 									<Star size={16} fill="currentColor" />
 									<bdi dir="ltr" className="ltr-value">
@@ -667,12 +650,12 @@ export default function SingleHotelView({
 					</div>
 					<div className="room-list jannat-room-list">
 						{roomCount ? (
-							paginatedRooms.map((room, index) => (
+							paginatedRooms.map((room) => (
 								<RoomCard
 									key={room._id || room.roomType}
 									hotel={hotel}
 									room={room}
-									priority={index < 2}
+									reviewSummary={reviewSummary}
 									imageGallery
 									checkIn={roomDates.checkIn}
 									checkOut={roomDates.checkOut}

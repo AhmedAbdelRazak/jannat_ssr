@@ -34,6 +34,7 @@ import {
 	walkingDistanceOnly,
 } from "../lib/format";
 import { openJannatSupport } from "../lib/support";
+import { normalizeHotelReviewSummary } from "../lib/hotelReviews";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
 
@@ -65,6 +66,7 @@ const roomGalleryImages = (room = {}, fallbackImage = "") => {
 export default function RoomCard({
 	hotel = {},
 	room = {},
+	reviewSummary,
 	checkIn,
 	checkOut,
 	adults = 1,
@@ -114,8 +116,20 @@ export default function RoomCard({
 		: isMadinah
 			? "to the Prophet's Mosque"
 			: "to Al Haram";
-	const rating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const normalizedReviewSummary = normalizeHotelReviewSummary(
+		reviewSummary ?? hotel.guestReviewSummary ?? {}
+	);
+	const hasRealRating = normalizedReviewSummary.ratingCount > 0;
+	const fallbackRating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const rating = hasRealRating ? normalizedReviewSummary.averageRating : fallbackRating;
 	const roundedRating = Math.round(rating);
+	const ratingAccessibilityLabel = isArabic
+		? hasRealRating
+			? `\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0636\u064a\u0648\u0641 ${rating.toFixed(1)} \u0645\u0646 5\u060c \u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 ${normalizedReviewSummary.ratingCount} \u062a\u0642\u064a\u064a\u0645`
+			: `\u062a\u0635\u0646\u064a\u0641 \u0627\u0644\u0641\u0646\u062f\u0642 ${rating.toFixed(1)} \u0645\u0646 5`
+		: hasRealRating
+			? `Guest rating ${rating.toFixed(1)} out of 5 from ${normalizedReviewSummary.ratingCount} ${normalizedReviewSummary.ratingCount === 1 ? "guest rating" : "guest ratings"}`
+			: `Hotel rating ${rating.toFixed(1)} out of 5`;
 	const visibleFeatures = uniqueRoomFeatures(room).slice(0, 4);
 	const description = stripHtml(
 		(isArabic && room.description_OtherLanguage) || room.description ||
@@ -293,7 +307,7 @@ export default function RoomCard({
 							<span>{hotelName}</span>
 						</Link>
 						{rating ? (
-							<span className="room-rating" aria-label={`${rating.toFixed(1)} star hotel`}>
+							<span className="room-rating" role="img" aria-label={ratingAccessibilityLabel}>
 								{Array.from({ length: 5 }, (_, index) => (
 									<Star
 										key={index}
