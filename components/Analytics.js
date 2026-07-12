@@ -4,6 +4,10 @@ import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FACEBOOK_PIXEL_ID, GOOGLE_ANALYTICS_ID } from "../lib/constants";
+import {
+	sanitizeSensitivePagePath,
+	sanitizeSensitiveUrl,
+} from "../lib/urlPrivacy";
 
 export default function Analytics() {
 	const pathname = usePathname();
@@ -11,8 +15,8 @@ export default function Analytics() {
 	const lastPathRef = useRef("");
 	const [loadLibraries, setLoadLibraries] = useState(false);
 	const pagePath = useMemo(() => {
-		const query = searchParams?.toString();
-		return `${pathname || "/"}${query ? `?${query}` : ""}`;
+		const query = searchParams?.toString() || "";
+		return sanitizeSensitivePagePath(pathname || "/", query ? `?${query}` : "");
 	}, [pathname, searchParams]);
 
 	useEffect(() => {
@@ -51,7 +55,7 @@ export default function Analytics() {
 		if (GOOGLE_ANALYTICS_ID && typeof window.gtag === "function") {
 			window.gtag("event", "page_view", {
 				page_path: pagePath,
-				page_location: window.location.href,
+				page_location: sanitizeSensitiveUrl(window.location.href),
 				page_title: document.title,
 			});
 		}
@@ -72,14 +76,41 @@ export default function Analytics() {
 					) : null}
 					<Script id="jannat-gtag" strategy="afterInteractive">
 						{`
+							function jannatSafeAnalyticsUrl() {
+								var url = new URL(window.location.href);
+								Array.from(url.searchParams.keys()).forEach(function(key) {
+									var normalized = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+									if (['reviewtoken', 'confirmationnumber', 'confirmationumber', 'confirmation'].includes(normalized)) {
+										url.searchParams.delete(key);
+									}
+								});
+								var rawHash = String(url.hash || '').replace(/^#/, '');
+								var hashQuestionIndex = rawHash.indexOf('?');
+								var hashHasBareParams = hashQuestionIndex < 0 && rawHash.indexOf('=') >= 0;
+								if (hashQuestionIndex >= 0 || hashHasBareParams) {
+									var hashAnchor = hashQuestionIndex >= 0 ? rawHash.slice(0, hashQuestionIndex) : '';
+									var hashQuery = hashQuestionIndex >= 0 ? rawHash.slice(hashQuestionIndex + 1) : rawHash;
+									var hashParams = new URLSearchParams(hashQuery);
+									Array.from(hashParams.keys()).forEach(function(key) {
+										var normalized = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+										if (['reviewtoken', 'confirmationnumber', 'confirmationumber', 'confirmation'].includes(normalized)) {
+											hashParams.delete(key);
+										}
+									});
+									var remainingHashQuery = hashParams.toString();
+									url.hash = hashAnchor ? '#' + hashAnchor + (remainingHashQuery ? '?' + remainingHashQuery : '') : (remainingHashQuery ? '#' + remainingHashQuery : '');
+								}
+								return url;
+							}
 							window.dataLayer = window.dataLayer || [];
 							function gtag(){dataLayer.push(arguments);}
 							window.gtag = window.gtag || gtag;
 							gtag('js', new Date());
 							gtag('config', '${GOOGLE_ANALYTICS_ID}', { send_page_view: false });
+							var jannatAnalyticsUrl = jannatSafeAnalyticsUrl();
 							gtag('event', 'page_view', {
-								page_path: window.location.pathname + window.location.search,
-								page_location: window.location.href,
+								page_path: jannatAnalyticsUrl.pathname + jannatAnalyticsUrl.search,
+								page_location: jannatAnalyticsUrl.toString(),
 								page_title: document.title
 							});
 						`}
@@ -111,6 +142,7 @@ export default function Analytics() {
 							width="1"
 							style={{ display: "none" }}
 							alt=""
+							referrerPolicy="no-referrer"
 							src={`https://www.facebook.com/tr?id=${FACEBOOK_PIXEL_ID}&ev=PageView&noscript=1`}
 						/>
 					</noscript>

@@ -23,8 +23,69 @@ import {
 	getJannatSupportConfig,
 	isVirtualJannatSupportHotelId,
 } from "../lib/supportConfig";
+import { SENSITIVE_REVIEW_QUERY_KEYS } from "../lib/urlPrivacy";
 
 const ICON_VERSION = "jb-20260619-premium";
+const PRIVATE_REVIEW_LINK_GUARD = `
+	(function () {
+		try {
+			var sensitiveKeys = new Set(${JSON.stringify([...SENSITIVE_REVIEW_QUERY_KEYS])});
+			var url = new URL(window.location.href);
+			if (String(url.pathname || "").toLowerCase().indexOf("/single-hotel/") !== 0) return;
+			var reviewLink = {};
+			var changed = false;
+			Array.from(url.searchParams.keys()).forEach(function (key) {
+				var normalized = String(key || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+				if (!sensitiveKeys.has(normalized)) return;
+				var value = url.searchParams.get(key) || "";
+				if (normalized === "reviewtoken" && !reviewLink.reviewToken) reviewLink.reviewToken = value;
+				if (
+					(normalized === "confirmationnumber" || normalized === "confirmationumber" || normalized === "confirmation") &&
+					!reviewLink.confirmationNumber
+				) reviewLink.confirmationNumber = value;
+				url.searchParams.delete(key);
+				changed = true;
+			});
+			var rawHash = String(url.hash || "").replace(/^#/, "");
+			var hashQuestionIndex = rawHash.indexOf("?");
+			var hashHasBareParams = hashQuestionIndex < 0 && rawHash.indexOf("=") >= 0;
+			if (hashQuestionIndex >= 0 || hashHasBareParams) {
+				var hashAnchor = hashQuestionIndex >= 0 ? rawHash.slice(0, hashQuestionIndex) : "";
+				var hashQuery = hashQuestionIndex >= 0 ? rawHash.slice(hashQuestionIndex + 1) : rawHash;
+				var hashParams = new URLSearchParams(hashQuery);
+				Array.from(hashParams.keys()).forEach(function (key) {
+					var normalized = String(key || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+					if (!sensitiveKeys.has(normalized)) return;
+					var value = hashParams.get(key) || "";
+					if (normalized === "reviewtoken" && !reviewLink.reviewToken) reviewLink.reviewToken = value;
+					if (
+						(normalized === "confirmationnumber" || normalized === "confirmationumber" || normalized === "confirmation") &&
+						!reviewLink.confirmationNumber
+					) reviewLink.confirmationNumber = value;
+					hashParams.delete(key);
+					changed = true;
+				});
+				var remainingHashQuery = hashParams.toString();
+				url.hash = hashAnchor
+					? "#" + hashAnchor + (remainingHashQuery ? "?" + remainingHashQuery : "")
+					: (remainingHashQuery ? "#" + remainingHashQuery : "");
+			}
+			if (reviewLink.reviewToken || reviewLink.confirmationNumber) {
+				Object.defineProperty(window, "__JANNAT_PRIVATE_REVIEW_LINK__", {
+					value: reviewLink,
+					configurable: true,
+				});
+			}
+			if (changed) {
+				window.history.replaceState(
+					window.history.state,
+					"",
+					url.pathname + url.search + url.hash
+				);
+			}
+		} catch (_error) {}
+	})();
+`;
 
 export const metadata = {
 	metadataBase: new URL(BRAND_URL),
@@ -163,6 +224,7 @@ export default async function RootLayout({ children }) {
 	return (
 		<html lang={initialLanguage} dir={initialDirection} data-scroll-behavior="smooth" suppressHydrationWarning>
 			<body>
+				<script dangerouslySetInnerHTML={{ __html: PRIVATE_REVIEW_LINK_GUARD }} />
 				<script
 					type="application/ld+json"
 					dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

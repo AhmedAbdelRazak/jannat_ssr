@@ -33,9 +33,11 @@ import {
 import { roomTypeCountLabel } from "../lib/roomLabels";
 import { openJannatSupport } from "../lib/support";
 import HotelDealsSection from "./HotelDealsSection";
+import HotelReviews from "./HotelReviews";
 import HeroSkyEffect from "./HeroSkyEffect";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
+import { normalizeHotelReviewSummary } from "../lib/hotelReviews";
 
 const compactPhotos = (hotel = {}) => {
 	const rows = [
@@ -100,7 +102,12 @@ const hotelMapDetails = (hotel = {}, hotelName = "") => {
 	};
 };
 
-export default function SingleHotelView({ hotel = {}, website = {} }) {
+export default function SingleHotelView({
+	hotel = {},
+	hotelSlug = "",
+	website = {},
+	initialReviewsData = {},
+}) {
 	const { t, isArabic } = useJannatApp();
 	const photos = compactPhotos(hotel);
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -108,7 +115,12 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const [preloadGallery, setPreloadGallery] = useState(false);
 	const [roomDates, setRoomDates] = useState(() => normalizeStayDates(dateOffset(1), dateOffset(4)));
 	const [activeSection, setActiveSection] = useState("overview");
+	const [reviewSummary, setReviewSummary] = useState(() =>
+		normalizeHotelReviewSummary(initialReviewsData?.summary)
+	);
 	const touchStartRef = useRef({ x: 0, y: 0 });
+	const handledSectionLinkRef = useRef("");
+	const sectionNavRef = useRef(null);
 	const heroImage =
 		photos[activePhotoIndex] ||
 		photos[0] ||
@@ -133,7 +145,9 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 	const rooms = Array.isArray(hotel.roomCountDetails) ? hotel.roomCountDetails : [];
 	const roomCount = rooms.length;
 	const roomTypesLabel = roomTypeCountLabel(roomCount, isArabic);
-	const rating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const fallbackRating = Math.max(0, Math.min(5, Number(hotel.hotelRating || 0)));
+	const hasRealRating = reviewSummary.ratingCount > 0;
+	const rating = hasRealRating ? reviewSummary.averageRating : fallbackRating;
 	const mapDetails = hotelMapDetails(hotel, hotelName);
 	const hasDeals = hotelHasDeals(hotel);
 	const roomTotalPages = Math.max(1, Math.ceil(roomCount / PAGE_SIZE));
@@ -163,7 +177,32 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 		setRoomPage(1);
 		setActivePhotoIndex(0);
 		setRoomDates(datesFromUrl());
+		setReviewSummary(normalizeHotelReviewSummary(initialReviewsData?.summary));
 	}, [hotel._id]);
+
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search || "");
+		let section = String(
+			params.get("section") || params.get("tab") || params.get("goto") || ""
+		)
+			.trim()
+			.toLowerCase();
+		if (["offers", "deals"].includes(section)) section = "packages";
+		if (!["overview", "location", "rooms", "packages", "support", "reviews"].includes(section)) {
+			return undefined;
+		}
+		const linkKey = `${hotel._id || hotelSlug}:${section}`;
+		if (handledSectionLinkRef.current === linkKey) return undefined;
+		const timeout = window.setTimeout(() => {
+			const target = document.getElementById(section);
+			if (!target) return;
+			handledSectionLinkRef.current = linkKey;
+			if (section !== "reviews") setActiveSection(section);
+			const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+			target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+		}, 180);
+		return () => window.clearTimeout(timeout);
+	}, [hotel._id, hotelSlug, hasDeals]);
 
 	useEffect(() => {
 		if (activePhotoIndex >= photos.length) setActivePhotoIndex(0);
@@ -205,6 +244,22 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 			window.removeEventListener("resize", updateActiveSection);
 		};
 	}, [hasDeals]);
+
+	useEffect(() => {
+		const container = sectionNavRef.current;
+		const activeLink = container?.querySelector(`[data-section-id="${activeSection}"]`);
+		if (!container || !activeLink || container.scrollWidth <= container.clientWidth) return;
+		const containerRect = container.getBoundingClientRect();
+		const linkRect = activeLink.getBoundingClientRect();
+		if (linkRect.left >= containerRect.left && linkRect.right <= containerRect.right) return;
+		const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+		const horizontalOffset =
+			linkRect.left + linkRect.width / 2 - (containerRect.left + containerRect.width / 2);
+		container.scrollBy({
+			left: horizontalOffset,
+			behavior: reduceMotion ? "auto" : "smooth",
+		});
+	}, [activeSection, isArabic]);
 
 	useEffect(() => {
 		setPreloadGallery(false);
@@ -373,13 +428,30 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 					<div className="single-hotel-summary">
 						<div className="single-hotel-summary-copy">
 							<div className="single-hotel-rating-row">
-								<span className="rating-pill">
+								<span
+									className="rating-pill"
+									aria-label={
+										isArabic
+											? `\u0627\u0644\u062a\u0642\u064a\u064a\u0645 ${rating.toFixed(1)} \u0645\u0646 5${
+													hasRealRating ? `\u060c \u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 ${reviewSummary.ratingCount} \u062a\u0642\u064a\u064a\u0645` : ""
+												}`
+											: `${rating.toFixed(1)} out of 5${hasRealRating ? ` from ${reviewSummary.ratingCount} guest ratings` : ""}`
+									}
+								>
 									<Star size={16} fill="currentColor" />
 									<bdi dir="ltr" className="ltr-value">
 										{rating.toFixed(1)}
 									</bdi>
 								</span>
-								<span>{isArabic ? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0641\u0646\u062f\u0642" : "Hotel rating"}</span>
+								<span>
+									{hasRealRating
+										? isArabic
+											? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0636\u064a\u0648\u0641"
+											: "Guest rating"
+										: isArabic
+											? "\u062a\u0642\u064a\u064a\u0645 \u0627\u0644\u0641\u0646\u062f\u0642"
+											: "Hotel rating"}
+								</span>
 								<div aria-hidden="true">
 									{[0, 1, 2, 3, 4].map((index) => (
 										<Star
@@ -389,6 +461,20 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 										/>
 									))}
 								</div>
+								{hasRealRating ? (
+									<a className="single-hotel-rating-count" href="#reviews">
+										<bdi dir="ltr">{reviewSummary.ratingCount}</bdi>{" "}
+										{isArabic
+											? "\u062a\u0642\u064a\u0645\u0627\u062a \u0645\u0646 \u0627\u0644\u0636\u064a\u0648\u0641"
+											: reviewSummary.ratingCount === 1
+												? "guest rating"
+												: "guest ratings"}
+									</a>
+								) : null}
+								<a className="single-hotel-rate-link" href="#reviews">
+									<Star size={14} />
+									{isArabic ? "\u0642\u064a\u0651\u0645 \u0625\u0642\u0627\u0645\u062a\u0643" : "Rate your stay"}
+								</a>
 							</div>
 							<h1>{hotelName}</h1>
 							<p className="hotel-address">
@@ -447,13 +533,14 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 			</section>
 
 			<nav className="hotel-section-nav" dir={isArabic ? "rtl" : "ltr"} aria-label="Hotel sections">
-				<div className="container">
+				<div className="container" ref={sectionNavRef}>
 					{sectionNavItems.map((item) => (
 						<a
 							key={item.id}
 							href={`#${item.id}`}
+							data-section-id={item.id}
 							className={activeSection === item.id ? "is-active" : undefined}
-							aria-current={activeSection === item.id ? "true" : undefined}
+							aria-current={activeSection === item.id ? "location" : undefined}
 							onClick={() => setActiveSection(item.id)}
 						>
 							{item.label}
@@ -609,6 +696,16 @@ export default function SingleHotelView({ hotel = {}, website = {} }) {
 			</section>
 
 			{hasDeals ? <HotelDealsSection hotel={hotel} fallbackDates={roomDates} /> : null}
+
+			<HotelReviews
+				key={hotelSlug || hotel._id}
+				hotel={hotel}
+				hotelSlug={hotelSlug}
+				website={website}
+				initialData={initialReviewsData}
+				summary={reviewSummary}
+				onSummaryChange={setReviewSummary}
+			/>
 
 			<section className="section" id="support">
 				<div className="container support-cta premium-card" dir={isArabic ? "rtl" : "ltr"}>
