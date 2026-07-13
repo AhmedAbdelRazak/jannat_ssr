@@ -13,6 +13,7 @@ import {
 } from "../lib/constants";
 import { LANGUAGES } from "../lib/i18n";
 import { normalizeLanguage } from "../lib/language";
+import { hotelsHaveDeals } from "../lib/deals";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import LazySupportWidget from "../components/LazySupportWidget";
@@ -137,7 +138,7 @@ export default async function RootLayout({ children }) {
 		whatsappNumber: website?.whatsappNumber,
 	});
 	const supportConfig = getJannatSupportConfig();
-	const hasOffers = Array.isArray(dealHotels) && dealHotels.length > 0;
+	const hasOffers = hotelsHaveDeals(dealHotels);
 	const footerHotels = Array.isArray(hotels)
 		? hotels.slice(0, 4).map((hotel) => ({
 				_id: hotel._id,

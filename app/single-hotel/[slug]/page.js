@@ -4,6 +4,7 @@ import SingleHotelView from "../../../components/SingleHotelView";
 import { getHotelBySlug, getHotelReviewsBySlug, getWebsite } from "../../../lib/api";
 import { BRAND_NAME, BRAND_URL, DEFAULT_HERO_IMAGE } from "../../../lib/constants";
 import { maskWebsiteEmails } from "../../../lib/email";
+import { withUpcomingDealsOnly } from "../../../lib/deals";
 import { firstImage, hotelLocation, titleCase } from "../../../lib/format";
 import {
 	HOTEL_REVIEW_PAGE_SIZE,
@@ -145,7 +146,8 @@ export default async function SingleHotelPage({ params }) {
 		initialHotelReviews(slug),
 	]);
 	if (!hotel?.hotelName) notFound();
-	const structuredData = hotelJsonLd({ hotel, slug, reviewsData });
+	const publicHotel = withUpcomingDealsOnly(hotel);
+	const structuredData = hotelJsonLd({ hotel: publicHotel, slug, reviewsData });
 	const clientWebsite = maskWebsiteEmails({
 		phone: website?.phone,
 		whatsappNumber: website?.whatsappNumber,
@@ -160,7 +162,7 @@ export default async function SingleHotelPage({ params }) {
 				}}
 			/>
 			<SingleHotelView
-				hotel={hotel}
+				hotel={publicHotel}
 				hotelSlug={slug}
 				website={clientWebsite}
 				initialReviewsData={reviewsData}

@@ -7,7 +7,7 @@
 		"dev": "next dev -p 3104",
 		"build": "next build",
 		"start": "next start -p 3104",
-		"test:hotel-ratings": "node --test scripts/hotelRatings.test.mjs scripts/homePageData.test.mjs"
+		"test:hotel-ratings": "node --test scripts/hotelRatings.test.mjs scripts/homePageData.test.mjs scripts/deals.test.mjs"
 	},
 	"dependencies": {
 		"@ant-design/icons": "^6.2.5",

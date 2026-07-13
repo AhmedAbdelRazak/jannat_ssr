@@ -94,7 +94,9 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 	const pricingRows = buildDealPricingRows(deal, commission, stay.checkIn, stay.checkOut);
 	const totalSar = pricingRows.reduce((sum, row) => sum + safeNumber(row.totalPriceWithCommission, 0), 0);
 	const nightlySar = totalSar / Math.max(1, stay.nights);
-	const packageTotalSar = dealTotalSar(deal, commission);
+	const packageTotalSar = dealTotalSar(deal, commission, stay.nights);
+	const totalBaseSar = pricingRows.reduce((sum, row) => sum + safeNumber(row.price, 0), 0);
+	const totalRootSar = pricingRows.reduce((sum, row) => sum + safeNumber(row.rootPrice, 0), 0);
 	const hijriLabel = isArabic ? stay.hijriRange?.labelAr : stay.hijriRange?.labelEn;
 	const image = firstImage(room.photos, hotel.hotelPhotos, DEFAULT_HERO_IMAGE);
 	const typeLabel = deal.type === "monthly" ? text.monthly : text.offer;
@@ -162,8 +164,8 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 				checkOutHijri: stay.hijriRange?.checkOutHijri || null,
 				totalSar: Number(packageTotalSar.toFixed(2)),
 				nightlySar: Number(averagePrice.toFixed(2)),
-				totalBaseSar: deal.type === "monthly" ? safeNumber(deal.monthBase, 0) : safeNumber(deal.base, 0),
-				totalRootSar: deal.type === "monthly" ? safeNumber(deal.monthRoot, 0) : safeNumber(deal.root, 0),
+				totalBaseSar: Number(totalBaseSar.toFixed(2)),
+				totalRootSar: Number(totalRootSar.toFixed(2)),
 				commissionRate: commission,
 				nights: stay.nights,
 				from: stay.checkIn,

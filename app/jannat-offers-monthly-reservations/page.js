@@ -2,6 +2,7 @@ import { DealsShowcase } from "../../components/HotelDealsSection";
 import PageHero from "../../components/PageHero";
 import { getDealHotels } from "../../lib/api";
 import { BRAND_NAME, DEFAULT_HERO_IMAGE } from "../../lib/constants";
+import { upcomingDealHotelsOnly } from "../../lib/deals";
 
 export const metadata = {
 	title: "Offers",
@@ -11,7 +12,8 @@ export const metadata = {
 };
 
 export default async function OffersPage() {
-	const hotels = await getDealHotels();
+	const hotels = await getDealHotels({ includeAllConfigured: true });
+	const upcomingHotels = upcomingDealHotelsOnly(hotels);
 	return (
 		<>
 			<PageHero
@@ -22,7 +24,7 @@ export default async function OffersPage() {
 				titleAr="إقامات شهرية وعروض خاصة"
 				copyAr="تظهر هنا الفنادق التي لديها أسعار شهرية أو عروض غرف نشطة."
 			/>
-			<DealsShowcase hotels={hotels} />
+			<DealsShowcase hotels={upcomingHotels} />
 		</>
 	);
 }
