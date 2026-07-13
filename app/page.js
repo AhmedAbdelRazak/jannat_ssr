@@ -2,8 +2,9 @@ import HeroCarousel from "../components/HeroCarousel";
 import HomeSections from "../components/HomeSections";
 import SearchPanel from "../components/SearchPanel";
 import { getFeaturedHotels, getHotels, getRoomTypes, getWebsite } from "../lib/api";
+import { DEFAULT_HERO_IMAGE } from "../lib/constants";
 import { maskWebsiteEmails } from "../lib/email";
-import { stripHtml } from "../lib/format";
+import { compactHotelForCard } from "../lib/hotelCardData.mjs";
 
 export default async function HomePage() {
 	const [website, hotels, featuredHotels, roomTypes] = await Promise.all([
@@ -12,24 +13,30 @@ export default async function HomePage() {
 		getFeaturedHotels(),
 		getRoomTypes(),
 	]);
-	const aboutCopy = stripHtml(website?.aboutUsEnglish)
-		.replace(/^Jannat Booking\s+Jannat Booking\b/i, "Jannat Booking")
-		.slice(0, 260);
-	const clientWebsite = maskWebsiteEmails(website);
+	const clientWebsite = maskWebsiteEmails({
+		homeMainBanners: website?.homeMainBanners || [],
+		homeSecondBanner: website?.homeSecondBanner || {},
+		homeThirdBanner: website?.homeThirdBanner || {},
+	});
+	const homeHotels = (featuredHotels.length ? featuredHotels : hotels)
+		.slice(0, 6)
+		.map((hotel) => compactHotelForCard(hotel, DEFAULT_HERO_IMAGE));
+	const homeRoomTypes = roomTypes.map((room) => ({
+		roomType: room?.roomType,
+		displayName: room?.displayName,
+	}));
 
 	return (
 		<>
 			<HeroCarousel website={clientWebsite} />
 			<section className="search-band">
 				<div className="container">
-					<SearchPanel hotels={hotels} roomTypes={roomTypes} />
+					<SearchPanel roomTypes={homeRoomTypes} />
 				</div>
 			</section>
 			<HomeSections
 				website={clientWebsite}
-				hotels={hotels}
-				featuredHotels={featuredHotels}
-				aboutCopy={aboutCopy}
+				hotels={homeHotels}
 			/>
 		</>
 	);

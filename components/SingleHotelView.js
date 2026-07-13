@@ -378,6 +378,7 @@ export default function SingleHotelView({
 									loading={activePhotoIndex === 0 ? undefined : "eager"}
 									decoding="async"
 									sizes="(max-width: 760px) calc(100vw - 24px), 1180px"
+									unoptimized={false}
 								/>
 							) : null}
 							{photos.length > 1 ? (
@@ -406,7 +407,7 @@ export default function SingleHotelView({
 										onClick={() => showPhoto(index)}
 										aria-label={`${isArabic ? "عرض الصورة" : "Show photo"} ${index + 1}`}
 									>
-										<OptimizedImage src={photo} alt="" width={150} height={88} sizes="120px" quality={70} />
+										<OptimizedImage src={photo} alt="" width={150} height={88} sizes="120px" quality={70} unoptimized={false} />
 									</button>
 								))}
 							</div>
@@ -657,6 +658,7 @@ export default function SingleHotelView({
 									room={room}
 									reviewSummary={reviewSummary}
 									imageGallery
+									optimizeImages
 									checkIn={roomDates.checkIn}
 									checkOut={roomDates.checkOut}
 								/>

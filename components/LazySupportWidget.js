@@ -23,7 +23,6 @@ const hasChatIntent = () => {
 
 export default function LazySupportWidget({
 	hotels = [],
-	website = {},
 	supportConfig = {},
 }) {
 	const [ready, setReady] = useState(false);
@@ -56,7 +55,6 @@ export default function LazySupportWidget({
 	return ready ? (
 		<SupportWidget
 			hotels={hotels}
-			website={website}
 			supportConfig={supportConfig}
 		/>
 	) : null;

@@ -131,7 +131,11 @@ export default async function RootLayout({ children }) {
 	const initialLanguage = normalizeLanguage(requestHeaders.get("x-jannat-language")) || "en";
 	const initialDirection = LANGUAGES[initialLanguage]?.dir || "ltr";
 	const [website, hotels, dealHotels] = await Promise.all([getWebsite(), getHotels(), getDealHotels()]);
-	const clientWebsite = maskWebsiteEmails(website);
+	const clientWebsite = maskWebsiteEmails({
+		janatLogo: { url: website?.janatLogo?.url || "" },
+		phone: website?.phone,
+		whatsappNumber: website?.whatsappNumber,
+	});
 	const supportConfig = getJannatSupportConfig();
 	const hasOffers = Array.isArray(dealHotels) && dealHotels.length > 0;
 	const footerHotels = Array.isArray(hotels)
@@ -238,7 +242,6 @@ export default async function RootLayout({ children }) {
 					<Footer website={clientWebsite} hotels={footerHotels} hasOffers={hasOffers} />
 					<LazySupportWidget
 						hotels={supportHotels}
-						website={clientWebsite}
 						supportConfig={supportConfig}
 					/>
 				</JannatAppProvider>

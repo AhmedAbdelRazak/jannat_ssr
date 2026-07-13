@@ -58,6 +58,7 @@ export default function HomePromoBanner({ banner = {}, position = "second" }) {
 				height={350}
 				sizes="(max-width: 760px) calc(100vw - 32px), 980px"
 				quality={80}
+				unoptimized={false}
 			/>
 			{href ? (
 				<span className="home-promo-action" aria-hidden="true">

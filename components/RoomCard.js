@@ -67,6 +67,7 @@ export default function RoomCard({
 	hotel = {},
 	room = {},
 	reviewSummary,
+	optimizeImages = false,
 	checkIn,
 	checkOut,
 	adults = 1,
@@ -260,6 +261,7 @@ export default function RoomCard({
 				fill
 				priority={priority}
 				sizes="(max-width: 760px) calc(100vw - 56px), 390px"
+				unoptimized={!optimizeImages}
 			/>
 			<span className="room-status-badge">
 				<CheckCircle2 size={15} />
@@ -441,6 +443,7 @@ export default function RoomCard({
 									fill
 									sizes="min(1040px, 100vw)"
 									quality={80}
+									unoptimized={!optimizeImages}
 								/>
 							) : null}
 							{galleryImages.length > 1 ? (
@@ -474,7 +477,7 @@ export default function RoomCard({
 										onClick={() => showGalleryImage(index)}
 										aria-label={`${isArabic ? "\u0639\u0631\u0636 \u0627\u0644\u0635\u0648\u0631\u0629" : "Show photo"} ${index + 1}`}
 									>
-										<OptimizedImage src={photo} alt="" width={132} height={82} sizes="96px" quality={70} />
+										<OptimizedImage src={photo} alt="" width={132} height={82} sizes="96px" quality={70} unoptimized={!optimizeImages} />
 									</button>
 								))}
 							</div>

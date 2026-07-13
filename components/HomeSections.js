@@ -8,7 +8,7 @@ import HotelGrid from "./HotelGrid";
 import HomePromoBanner from "./HomePromoBanner";
 import { useJannatApp } from "./JannatAppProvider";
 
-export default function HomeSections({ website = {}, hotels = [], featuredHotels = [] }) {
+export default function HomeSections({ website = {}, hotels = [] }) {
 	const { t, isArabic, hrefWithLanguage } = useJannatApp();
 
 	return (
@@ -29,7 +29,7 @@ export default function HomeSections({ website = {}, hotels = [], featuredHotels
 							</Link>
 						</div>
 					</div>
-					<HotelGrid hotels={featuredHotels.length ? featuredHotels : hotels} limit={6} />
+					<HotelGrid hotels={hotels} limit={6} optimizeImages />
 				</div>
 			</section>
 			<HomePromoBanner banner={website.homeThirdBanner} position="third" />

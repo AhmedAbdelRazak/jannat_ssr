@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { normalizeImageUrl } from "../lib/images";
+import { canOptimizeImageUrl } from "../lib/imageOptimization.mjs";
 
 export default function OptimizedImage({
 	src,
@@ -13,6 +14,7 @@ export default function OptimizedImage({
 }) {
 	const normalizedSrc = normalizeImageUrl(src);
 	if (!normalizedSrc) return null;
+	const safelyUnoptimized = unoptimized || !canOptimizeImageUrl(normalizedSrc);
 
 	const imageProps = {
 		...props,
@@ -21,7 +23,7 @@ export default function OptimizedImage({
 		priority,
 		quality,
 		sizes,
-		unoptimized,
+		unoptimized: safelyUnoptimized,
 		draggable: false,
 	};
 

@@ -56,8 +56,9 @@ export default function HeroCarousel({ website = {} }) {
 	}, [isArabic, website]);
 	const [active, setActive] = useState(0);
 	const activeRef = useRef(0);
+	const initialRenderRef = useRef(true);
 	const [previousActive, setPreviousActive] = useState(null);
-	const [hasEntered, setHasEntered] = useState(false);
+	const [hasEntered, setHasEntered] = useState(true);
 	const current = slides[active] || slides[0];
 	const visibleSlideIndexes = previousActive !== null && previousActive !== active ? [previousActive, active] : [active];
 
@@ -66,6 +67,10 @@ export default function HeroCarousel({ website = {} }) {
 	}, [active]);
 
 	useEffect(() => {
+		if (initialRenderRef.current) {
+			initialRenderRef.current = false;
+			return undefined;
+		}
 		setHasEntered(false);
 		const frame = window.requestAnimationFrame(() => setHasEntered(true));
 		const cleanup = window.setTimeout(() => setPreviousActive(null), 950);
@@ -118,6 +123,7 @@ export default function HeroCarousel({ website = {} }) {
 							loading={isActive ? "eager" : undefined}
 							sizes="100vw"
 							quality={66}
+							unoptimized={false}
 							aria-hidden="true"
 						/>
 					</div>

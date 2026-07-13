@@ -146,6 +146,10 @@ export default async function SingleHotelPage({ params }) {
 	]);
 	if (!hotel?.hotelName) notFound();
 	const structuredData = hotelJsonLd({ hotel, slug, reviewsData });
+	const clientWebsite = maskWebsiteEmails({
+		phone: website?.phone,
+		whatsappNumber: website?.whatsappNumber,
+	});
 
 	return (
 		<>
@@ -158,7 +162,7 @@ export default async function SingleHotelPage({ params }) {
 			<SingleHotelView
 				hotel={hotel}
 				hotelSlug={slug}
-				website={maskWebsiteEmails(website)}
+				website={clientWebsite}
 				initialReviewsData={reviewsData}
 			/>
 		</>

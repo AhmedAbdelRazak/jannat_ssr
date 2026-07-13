@@ -29,33 +29,17 @@ import {
 } from "lucide-react";
 import { DEFAULT_HERO_IMAGE } from "../lib/constants";
 import { trackConversion } from "../lib/analyticsEvents";
-import { drivingDistance, firstImage, hotelLocation, isUsableImage, slugifyHotel, titleCase, walkingDistanceOnly } from "../lib/format";
+import { drivingDistance, hotelLocation, slugifyHotel, titleCase, walkingDistanceOnly } from "../lib/format";
+import {
+	hotelCardFeatures,
+	hotelCardImages,
+	hotelCardPrice,
+} from "../lib/hotelCardData.mjs";
 import { resolveHotelRating } from "../lib/hotelRatings.mjs";
 import { roomTypeCountLabel } from "../lib/roomLabels";
 import { openJannatSupport } from "../lib/support";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
-
-const minBasePrice = (hotel = {}) => {
-	const prices = (hotel.roomCountDetails || [])
-		.map((room) => Number(room?.price?.basePrice || 0))
-		.filter((price) => price > 0);
-	return prices.length ? Math.min(...prices) : 0;
-};
-
-const hotelImages = (hotel = {}) => {
-	const rows = [
-		...(Array.isArray(hotel.hotelPhotos) ? hotel.hotelPhotos : []),
-		...(hotel.roomCountDetails || []).flatMap((room) => (Array.isArray(room.photos) ? room.photos : [])),
-	];
-	const urls = [];
-	rows.forEach((item) => {
-		const url = typeof item === "string" ? item : item?.url;
-		if (isUsableImage(url) && !urls.includes(url)) urls.push(url);
-	});
-	if (!urls.length) urls.push(firstImage(hotel.hotelPhotos, hotel.roomCountDetails?.[0]?.photos, DEFAULT_HERO_IMAGE));
-	return urls.filter(Boolean).slice(0, 5);
-};
 
 const featureIcon = (feature = "") => {
 	const text = String(feature).toLowerCase();
@@ -78,15 +62,6 @@ const featureIcon = (feature = "") => {
 	return CheckCircle2;
 };
 
-const hotelFeatures = (hotel = {}) => {
-	const rows = (hotel.roomCountDetails || []).flatMap((room) => [
-		...(Array.isArray(room?.amenities) ? room.amenities : []),
-		...(Array.isArray(room?.views) ? room.views : []),
-		...(Array.isArray(room?.extraAmenities) ? room.extraAmenities : []),
-	]);
-	return [...new Set(rows.filter(Boolean))];
-};
-
 const addressLine = (hotel = {}) =>
 	hotel.hotelAddress
 		? String(hotel.hotelAddress)
@@ -95,22 +70,30 @@ const addressLine = (hotel = {}) =>
 				.join(", ")
 		: hotelLocation(hotel) || "Saudi Arabia";
 
-export default function HotelCard({ hotel = {}, priority = false }) {
+export default function HotelCard({ hotel = {}, priority = false, optimizeImages = false }) {
 	const { t, language, isArabic, hrefWithLanguage, formatCurrency } = useJannatApp();
 	const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
 	const [activeImageIndex, setActiveImageIndex] = useState(0);
 	const touchStartRef = useRef({ x: 0, y: 0 });
 	const swipeHandledRef = useRef(false);
-	const images = hotelImages(hotel);
+	const images = Array.isArray(hotel.cardImages)
+		? hotel.cardImages
+		: hotelCardImages(hotel, DEFAULT_HERO_IMAGE);
 	const image = images[activeImageIndex] || images[0] || DEFAULT_HERO_IMAGE;
 	const slug = slugifyHotel(hotel.hotelName);
-	const price = minBasePrice(hotel);
+	const price = Number.isFinite(Number(hotel.cardPrice))
+		? Number(hotel.cardPrice)
+		: hotelCardPrice(hotel);
 	const oldPrice = price ? Math.ceil(price * 1.1) : 0;
-	const roomsCount = (hotel.roomCountDetails || []).length;
+	const roomsCount = Number.isFinite(Number(hotel.cardRoomCount))
+		? Math.max(0, Math.trunc(Number(hotel.cardRoomCount)))
+		: (hotel.roomCountDetails || []).length;
 	const roomTypesLabel = roomTypeCountLabel(roomsCount, isArabic);
 	const walking = walkingDistanceOnly(hotel);
 	const driving = drivingDistance(hotel);
-	const features = hotelFeatures(hotel);
+	const features = Array.isArray(hotel.cardFeatures)
+		? hotel.cardFeatures
+		: hotelCardFeatures(hotel);
 	const visibleFeatures = amenitiesExpanded ? features : features.slice(0, 15);
 	const displayName =
 		isArabic && hotel.hotelName_OtherLanguage
@@ -215,6 +198,7 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 						priority={priority}
 						quality={66}
 						sizes="(max-width: 760px) calc(100vw - 56px), (max-width: 1100px) 42vw, 370px"
+						unoptimized={!optimizeImages}
 					/>
 					<span className="hotel-card-image-dots" aria-hidden="true">
 						{images.slice(0, 5).map((item, index) => (
@@ -238,6 +222,7 @@ export default function HotelCard({ hotel = {}, priority = false }) {
 								height={74}
 								sizes="90px"
 								quality={66}
+								unoptimized={!optimizeImages}
 							/>
 						</button>
 					))}

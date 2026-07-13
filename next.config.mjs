@@ -9,6 +9,11 @@ const nextConfig = {
 		qualities: [66, 68, 70, 72, 75, 78, 80],
 		deviceSizes: [320, 360, 384, 414, 512, 640, 750, 828, 1080, 1200, 1440, 1920],
 		imageSizes: [32, 48, 64, 96, 120, 180, 256, 384],
+		localPatterns: [
+			{ pathname: "/assets/**", search: "" },
+			{ pathname: "/assets/**", search: "?v=zad-ajyad-20260712" },
+			{ pathname: "/destinations/**", search: "" },
+		],
 		remotePatterns: [
 			{
 				protocol: "https",

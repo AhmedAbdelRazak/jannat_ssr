@@ -87,7 +87,8 @@ export default function DestinationCards() {
 									alt={destination.label[isArabic ? "ar" : "en"]}
 									width={180}
 									height={140}
-									sizes="(max-width: 760px) 96px, 180px"
+									sizes="(max-width: 460px) 96px, (max-width: 1100px) 118px, 150px"
+									unoptimized={false}
 								/>
 							</span>
 							<span className="destination-card-copy">
