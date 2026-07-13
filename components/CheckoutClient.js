@@ -37,6 +37,7 @@ import {
 	safeNumber,
 	transformCartToPickedRoomsType,
 } from "../lib/booking";
+import { cartPackageIssue } from "../lib/dealPolicy.mjs";
 import OptimizedImage from "./OptimizedImage";
 import { useJannatApp } from "./JannatAppProvider";
 
@@ -309,6 +310,9 @@ const checkoutIssueSelectors = {
 	terms: '[data-checkout-field="terms"]',
 	cart: ".checkout-summary",
 	hotel: ".checkout-summary",
+	package: ".checkout-summary",
+	mixedPackageCart: ".checkout-summary",
+	mixedPackageDates: ".checkout-summary",
 };
 
 const checkoutValidationMessage = (field, isArabic) => {
@@ -317,6 +321,15 @@ const checkoutValidationMessage = (field, isArabic) => {
 		hotel: isArabic
 			? "يرجى حجز غرف من فندق واحد فقط في كل طلب."
 			: "Please book rooms from one hotel per reservation.",
+		package: isArabic
+			? "هذه الباقة لم تعد متاحة. يرجى إزالتها واختيار عرض قادم."
+			: "A full-stay package in your cart is no longer available. Remove it and choose an upcoming offer.",
+		mixedPackageCart: isArabic
+			? "يرجى إتمام الباقات كاملة المدة والغرف العادية في حجوزات منفصلة."
+			: "Full-stay packages and standard rooms must be checked out separately.",
+		mixedPackageDates: isArabic
+			? "يرجى إتمام كل نافذة تواريخ للباقات في حجز منفصل."
+			: "Full-stay packages with different date windows must be checked out separately.",
 		paymentOption: isArabic ? "يرجى اختيار طريقة الدفع." : "Please choose how you would like to pay.",
 		terms: isArabic ? "يرجى الموافقة على الشروط والأحكام." : "Please accept the Terms & Conditions.",
 		fullName: isArabic ? "يرجى كتابة الاسم الكامل." : "Please enter your full name, first and last name.",
@@ -1540,6 +1553,19 @@ export default function CheckoutClient({ website = {} }) {
 				showCheckoutValidationError("cart");
 				return null;
 			}
+			const packageIssue = cartPackageIssue(cart);
+			if (packageIssue?.code === "invalid-package") {
+				showCheckoutValidationError("package");
+				return null;
+			}
+			if (packageIssue?.code === "mixed-package-cart") {
+				showCheckoutValidationError("mixedPackageCart");
+				return null;
+			}
+			if (packageIssue?.code === "mixed-package-dates") {
+				showCheckoutValidationError("mixedPackageDates");
+				return null;
+			}
 			if (!oneHotelOnly) {
 				showCheckoutValidationError("hotel");
 				return null;
@@ -1571,7 +1597,7 @@ export default function CheckoutClient({ website = {} }) {
 			}
 			return details;
 		},
-		[cart.length, getCustomerDetails, guestAgreed, oneHotelOnly, selectedPaymentOption, showCheckoutValidationError]
+		[cart, getCustomerDetails, guestAgreed, oneHotelOnly, selectedPaymentOption, showCheckoutValidationError]
 	);
 
 	const buildReservationPayload = useCallback(
@@ -1616,7 +1642,7 @@ export default function CheckoutClient({ website = {} }) {
 	const createUncompletedDocument = useCallback(
 		async (rootCause) => {
 			const values = form.getFieldsValue();
-			if (!(values.phone || values.email) || !cart.length) return;
+			if (!(values.phone || values.email) || !cart.length || cartPackageIssue(cart)) return;
 			try {
 				const payment =
 					selectedPaymentOption === "acceptDeposit"

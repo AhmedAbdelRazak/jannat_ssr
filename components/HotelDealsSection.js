@@ -2,10 +2,15 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Button } from "antd";
+import { App as AntdApp, Button } from "antd";
 import { ArrowUpRight, BedDouble, CalendarDays, CheckCircle2, Gift, MapPin, MessageCircle, Moon, ShoppingBag, Sparkles, Tag } from "lucide-react";
 import { trackConversion } from "../lib/analyticsEvents";
 import { safeNumber } from "../lib/booking";
+import {
+	DEAL_CART_POLICY_VERSION,
+	DEAL_DATE_SOURCE,
+	isFullyUpcomingDeal,
+} from "../lib/dealPolicy.mjs";
 import {
 	buildDealPricingRows,
 	countHotelDeals,
@@ -84,6 +89,7 @@ const roomNameFor = (room = {}, isArabic = false) =>
 	(isArabic && room.displayName_OtherLanguage) || room.displayName || roomTypeLabel(room.roomType);
 
 function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHotelLink = false }) {
+	const { message } = AntdApp.useApp();
 	const { addToCart, formatCurrency, hrefWithLanguage, isArabic, t } = useJannatApp();
 	const text = dealText(isArabic);
 	const hotelName = (isArabic && hotel.hotelName_OtherLanguage) || titleCase(hotel.hotelName);
@@ -102,11 +108,20 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 	const typeLabel = deal.type === "monthly" ? text.monthly : text.offer;
 	const lockLabel = stay.locked ? text.fixedDates : text.selectedStay;
 	const totalLabel = deal.type === "monthly" ? text.packageTotal : text.offerTotal;
+	const dealEligible = isFullyUpcomingDeal(deal);
 	const supportMessage = isArabic
 		? `\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u064a\u0643\u0645 ${ARABIC_BRAND_NAME}\u060c \u0623\u0631\u063a\u0628 \u0628\u0627\u0644\u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u0639\u0646 ${deal.name} - ${roomName} \u0641\u064a ${hotelName}.`
 		: `Assalamu alaikum Jannat Booking, I am interested in ${deal.name} - ${roomName} at ${hotelName}.`;
 
 	const handleAddDeal = () => {
+		if (!isFullyUpcomingDeal(deal)) {
+			message.error(
+				isArabic
+					? "\u0644\u0645 \u064a\u0639\u062f \u0647\u0630\u0627 \u0627\u0644\u0639\u0631\u0636 \u0645\u062a\u0627\u062d\u0627 \u0644\u0644\u062d\u062c\u0632."
+					: "This full-stay offer is no longer available to book."
+			);
+			return;
+		}
 		const averagePrice = totalSar / Math.max(1, pricingRows.length || 1);
 		trackConversion(
 			"addToCart",
@@ -157,6 +172,8 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 				pkgId: deal.id,
 				roomId: room._id,
 				name: deal.name,
+				dateSource: DEAL_DATE_SOURCE,
+				policyVersion: DEAL_CART_POLICY_VERSION,
 				usesSelectedStayDates: stay.usesSelectedStayDates,
 				hijriLabelAr: stay.hijriRange?.labelAr || "",
 				hijriLabelEn: stay.hijriRange?.labelEn || "",
@@ -224,7 +241,7 @@ function DealTile({ hotel = {}, room = {}, deal = {}, fallbackDates = {}, showHo
 					</p>
 				) : null}
 				<div className="deal-actions">
-					<Button type="primary" icon={<ShoppingBag size={16} />} onClick={handleAddDeal}>
+					<Button type="primary" icon={<ShoppingBag size={16} />} onClick={handleAddDeal} disabled={!dealEligible}>
 						{text.add}
 					</Button>
 					<button
