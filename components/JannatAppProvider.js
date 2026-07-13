@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 import dayjs from "dayjs";
 import { apiUrl } from "../lib/api";
 import { buildRoomPricing, cartRoomsCount, cartTotal, defaultGuestPaymentAcceptance, generateDateRange, safeNumber } from "../lib/booking";
-import { parseHijriDealRange } from "../lib/deals";
+import {
+	isPackageCartItem,
+	pruneIneligiblePackageCartItems,
+} from "../lib/dealPolicy.mjs";
 import {
 	DEFAULT_CURRENCY,
 	DEFAULT_CURRENCY_RATES,
@@ -85,17 +88,8 @@ const cartItemMatches = (item = {}, id, match = {}) => {
 
 const isOfferPackageItem = (item = {}) => item?.packageMeta?.type === "offer";
 
-const parsedOfferPackageRange = (item = {}) => {
-	if (!isOfferPackageItem(item)) return null;
-	return parseHijriDealRange(
-		item.packageMeta?.hijriLabelAr ||
-			item.packageMeta?.hijriLabelEn ||
-			item.packageMeta?.name ||
-			""
-	);
-};
-
-const isCartDateLocked = (item = {}) => Boolean(item.lockDates || item.datesLocked || isOfferPackageItem(item));
+const isCartDateLocked = (item = {}) =>
+	Boolean(item.lockDates || item.datesLocked || isPackageCartItem(item));
 
 const mergeCartItems = (items = []) => {
 	const merged = [];
@@ -116,13 +110,13 @@ const mergeCartItems = (items = []) => {
 const normalizeItem = (item = {}, forcedDates = {}) => {
 	const lockedDates = isCartDateLocked(item);
 	const dateSource = lockedDates ? {} : forcedDates;
-	const fixedOfferRange = parsedOfferPackageRange(item);
+	const packageMeta = item.packageMeta && typeof item.packageMeta === "object" ? item.packageMeta : null;
 	const checkIn = normalizeCartDate(
-		fixedOfferRange?.checkIn || dateSource.checkIn || item.checkIn || item.startDate || dateOffset(1),
+		dateSource.checkIn || item.checkIn || item.startDate || dateOffset(1),
 		dateOffset(1)
 	);
 	const rawCheckOut = normalizeCartDate(
-		fixedOfferRange?.checkOut || dateSource.checkOut || item.checkOut || item.endDate || dateOffset(4),
+		dateSource.checkOut || item.checkOut || item.endDate || dateOffset(4),
 		dateOffset(4)
 	);
 	const checkOut = dayjs(rawCheckOut).isAfter(dayjs(checkIn))
@@ -138,7 +132,6 @@ const normalizeItem = (item = {}, forcedDates = {}) => {
 		? item.pricingByDayWithCommission
 		: storedPricingByDay;
 	const dateRange = generateDateRange(checkIn, checkOut);
-	const packageMeta = item.packageMeta && typeof item.packageMeta === "object" ? item.packageMeta : null;
 	const firstStoredPricing = storedPricingByDayWithCommission[0] || storedPricingByDay[0] || {};
 	const storedCommissionRate = safeNumber(firstStoredPricing.commissionRate, roomCommission / 100);
 	const metaTotalBaseSar = safeNumber(packageMeta?.totalBaseSar, NaN);
@@ -151,11 +144,11 @@ const normalizeItem = (item = {}, forcedDates = {}) => {
 	const fallbackPackageTotal = safeNumber(packageMeta?.totalSar, safeNumber(item.price, fallbackFirstTotal));
 	const fallbackScale = fallbackFirstTotal > 0 && fallbackPackageTotal > 0 ? fallbackPackageTotal / fallbackFirstTotal : 1;
 	const shouldReusePricing =
-		(!isOfferPackageItem(item) || (!fixedOfferRange && !hasMetaPackageTotals)) &&
+		(!isOfferPackageItem(item) || !hasMetaPackageTotals) &&
 		pricingRowsMatchDates(storedPricingByDayWithCommission, dateRange) &&
 		pricingRowsMatchDates(storedPricingByDay.length ? storedPricingByDay : storedPricingByDayWithCommission, dateRange);
 	const reprojectedOfferPricing =
-		isOfferPackageItem(item) && dateRange.length && (hasMetaPackageTotals || (fixedOfferRange && storedPricingByDayWithCommission.length))
+		isOfferPackageItem(item) && dateRange.length && hasMetaPackageTotals
 			? buildLockedPackagePricing({
 					dates: dateRange,
 					totalBase: hasMetaPackageTotals
@@ -225,11 +218,13 @@ const normalizeItem = (item = {}, forcedDates = {}) => {
 						pkgId: packageMeta.pkgId || "",
 						roomId: packageMeta.roomId || item.roomId || "",
 						name: packageMeta.name || "",
+						dateSource: packageMeta.dateSource || "",
+						policyVersion: safeNumber(packageMeta.policyVersion, 0),
 						usesSelectedStayDates: Boolean(packageMeta.usesSelectedStayDates) && !isOfferPackageItem(item),
-						hijriLabelAr: packageMeta.hijriLabelAr || fixedOfferRange?.labelAr || "",
-						hijriLabelEn: packageMeta.hijriLabelEn || fixedOfferRange?.labelEn || "",
-						checkInHijri: packageMeta.checkInHijri || fixedOfferRange?.checkInHijri || null,
-						checkOutHijri: packageMeta.checkOutHijri || fixedOfferRange?.checkOutHijri || null,
+						hijriLabelAr: packageMeta.hijriLabelAr || "",
+						hijriLabelEn: packageMeta.hijriLabelEn || "",
+						checkInHijri: packageMeta.checkInHijri || null,
+						checkOutHijri: packageMeta.checkOutHijri || null,
 						totalSar: safeNumber(
 							packageMeta.totalSar,
 							recalculatedPricing.pricingByDayWithCommission.reduce((sum, row) => sum + safeNumber(row.totalPriceWithCommission, 0), 0)
@@ -253,7 +248,9 @@ const normalizeItem = (item = {}, forcedDates = {}) => {
 };
 
 const normalizeSharedCartDates = (items = [], forcedDates = {}) => {
-	const normalized = items.map((item) => normalizeItem(item, forcedDates));
+	const normalized = pruneIneligiblePackageCartItems(
+		items.map((item) => normalizeItem(item, forcedDates))
+	);
 	if (!normalized.length) return [];
 	const sharedSource = normalized.find((item) => !isCartDateLocked(item)) || normalized[0];
 	const sharedDates = {

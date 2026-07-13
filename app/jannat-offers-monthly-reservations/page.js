@@ -11,8 +11,10 @@ export const metadata = {
 	alternates: { canonical: "/jannat-offers-monthly-reservations" },
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function OffersPage() {
-	const hotels = await getDealHotels({ includeAllConfigured: true });
+	const hotels = await getDealHotels({ fresh: true });
 	const upcomingHotels = upcomingDealHotelsOnly(hotels);
 	return (
 		<>
