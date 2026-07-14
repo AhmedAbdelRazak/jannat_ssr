@@ -42,8 +42,14 @@ export default async function RoomsPage({ searchParams }) {
 	const requestedPage = parsePage(params?.page);
 	const hasSearch = Boolean(params?.startDate || params?.endDate || params?.destination || params?.roomType);
 	const query = `${startDate}_${endDate}_${roomType}_${adults}_${children}_${destination}`;
-	const [hotels, roomTypes, website] = await Promise.all([getHotels(), getRoomTypes(), getWebsite()]);
-	const results = hasSearch ? await getRoomSearchResults(query) : hotels;
+	const [hotels, roomTypes, website] = await Promise.all([
+		getHotels({ freshRatings: true }),
+		getRoomTypes(),
+		getWebsite(),
+	]);
+	const results = hasSearch
+		? await getRoomSearchResults(query, { freshRatings: true })
+		: hotels;
 	const roomRows = [];
 
 	results.forEach((hotel) => {

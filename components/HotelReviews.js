@@ -19,6 +19,7 @@ import { WHATSAPP_NUMBER } from "../lib/constants";
 import { titleCase } from "../lib/format";
 import {
 	HOTEL_REVIEW_PAGE_SIZE,
+	normalizeHotelReview,
 	normalizeHotelReviewPage,
 	normalizeHotelReviewSummary,
 } from "../lib/hotelReviews";
@@ -121,7 +122,9 @@ const reviewCopy = (isArabic, hotelName) =>
 			submitting: "\u062c\u0627\u0631\u064d \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u062a\u0642\u064a\u064a\u0645...",
 			chooseRating: "\u064a\u0631\u062c\u0649 \u0627\u062e\u062a\u064a\u0627\u0631 \u062a\u0642\u064a\u064a\u0645 \u0645\u0646 1 \u0625\u0644\u0649 5 \u0646\u062c\u0648\u0645.",
 			nameRequired: "\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0623\u0648\u0644 \u0648\u0627\u0633\u0645 \u0627\u0644\u0639\u0627\u0626\u0644\u0629.",
-			recent: "\u0623\u062d\u062f\u062b \u062a\u0642\u064a\u064a\u0645\u0627\u062a \u0627\u0644\u0636\u064a\u0648\u0641",
+			recent: "\u0623\u062d\u062f\u062b \u0645\u0631\u0627\u062c\u0639\u0627\u062a \u0627\u0644\u0636\u064a\u0648\u0641",
+			reviewSingular: "\u0645\u0631\u0627\u062c\u0639\u0629",
+			reviewPlural: "\u0645\u0631\u0627\u062c\u0639\u0627\u062a",
 			ratingOnly: "\u062a\u0642\u064a\u064a\u0645 \u0628\u062f\u0648\u0646 \u062a\u0639\u0644\u064a\u0642.",
 			verified: "\u0625\u0642\u0627\u0645\u0629 \u0645\u0624\u0643\u062f\u0629",
 			loadError: "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062d\u0629 \u0645\u0646 \u0627\u0644\u062a\u0642\u064a\u064a\u0645\u0627\u062a. \u064a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.",
@@ -162,7 +165,9 @@ const reviewCopy = (isArabic, hotelName) =>
 			submitting: "Submitting rating...",
 			chooseRating: "Please choose a rating from 1 to 5 stars.",
 			nameRequired: "Please enter your first and last names.",
-			recent: "Recent guest ratings",
+			recent: "Recent guest reviews",
+			reviewSingular: "review",
+			reviewPlural: "reviews",
 			ratingOnly: "Rating shared without a comment.",
 			verified: "Verified stay",
 			loadError: "We could not load this page of ratings. Please try again.",
@@ -501,25 +506,35 @@ export default function HotelReviews({
 			onSummaryChange?.(nextSummary);
 			setReviewsAvailable(true);
 			const priorPage = pagination.page;
-			if (response.review?._id) {
+			const submittedReview = normalizeHotelReview(response.review);
+			if (submittedReview?._id) {
 				setReviews((current) =>
 					[
-						response.review,
+						submittedReview,
 						...(priorPage === 1
-							? current.filter((review) => review?._id !== response.review._id)
+							? current.filter((review) => review?._id !== submittedReview._id)
 							: []),
 					].slice(0, HOTEL_REVIEW_PAGE_SIZE)
 				);
 			} else if (priorPage !== 1) {
 				setReviews([]);
 			}
-			setPagination((current) => ({
-				...current,
-				page: 1,
-				totalItems: nextSummary.ratingCount,
-				totalPages: Math.max(1, Math.ceil(nextSummary.ratingCount / HOTEL_REVIEW_PAGE_SIZE)),
-				hasNextPage: nextSummary.ratingCount > HOTEL_REVIEW_PAGE_SIZE,
-			}));
+			setPagination((current) => {
+				const totalItems = Math.max(
+					Number(current.totalItems || 0) + (submittedReview?._id ? 1 : 0),
+					nextSummary.ratingCount
+				);
+				return {
+					...current,
+					page: 1,
+					totalItems,
+					totalPages: Math.max(
+						1,
+						Math.ceil(totalItems / HOTEL_REVIEW_PAGE_SIZE)
+					),
+					hasNextPage: totalItems > HOTEL_REVIEW_PAGE_SIZE,
+				};
+			});
 			setSubmittedRating(rating);
 			setForm((current) => ({ ...current, comment: "" }));
 			if (rating >= 4) setCelebrating(true);
@@ -593,6 +608,10 @@ export default function HotelReviews({
 	};
 
 	const hasRealRating = normalizedSummary.ratingCount > 0;
+	const publicReviewCount = Math.max(
+		Number(pagination.totalItems || 0),
+		reviews.length
+	);
 
 	return (
 		<section className="section hotel-reviews-section" id="reviews" aria-labelledby="hotel-reviews-title">
@@ -806,13 +825,25 @@ export default function HotelReviews({
 					<div className="hotel-review-list-shell" aria-busy={reviewsLoading}>
 						<div className="hotel-review-list-heading">
 							<h3 ref={reviewsHeadingRef} tabIndex="-1">{copy.recent}</h3>
-							{hasRealRating ? <span><bdi dir="ltr">{normalizedSummary.ratingCount}</bdi> {normalizedSummary.ratingCount === 1 ? copy.ratingSingular : copy.ratingPlural}</span> : null}
+							{publicReviewCount ? (
+								<span>
+									<bdi dir="ltr">{publicReviewCount}</bdi>{" "}
+									{publicReviewCount === 1
+										? copy.reviewSingular
+										: copy.reviewPlural}
+								</span>
+							) : null}
 						</div>
 						{reviewsError ? <p className="hotel-review-error" role="alert">{reviewsError}</p> : null}
-						{reviewsAvailable && hasRealRating && reviews.length ? (
+						{reviewsAvailable && reviews.length ? (
 							<div className={`hotel-review-list${reviewsLoading ? " is-loading" : ""}`}>
 								{reviews.map((review) => {
 									const rating = boundedRating(review.rating);
+									const ratingVisible = review.ratingVisible === true && rating > 0;
+									const comment =
+										review.commentVisible === true
+											? cleanText(review.comment, 4000)
+											: "";
 									const date = formatReviewDate(review.createdAt, isArabic);
 									return (
 										<article className="premium-card hotel-review-item" key={review._id}>
@@ -824,21 +855,25 @@ export default function HotelReviews({
 													<strong>{cleanText(review.displayName, 100) || (isArabic ? "\u0636\u064a\u0641" : "Guest")}</strong>
 													{date ? <time dateTime={String(review.createdAt).slice(0, 10)}>{date}</time> : null}
 												</div>
-												<div className="hotel-review-item-rating">
-											<StaticStars
-												rating={rating}
-												label={
-													isArabic
-														? `\u0627\u0644\u062a\u0642\u064a\u064a\u0645 ${rating} \u0645\u0646 5 \u0646\u062c\u0648\u0645`
-														: `${rating} out of 5 stars`
-												}
-											/>
-													<bdi dir="ltr">{rating}.0</bdi>
-												</div>
+												{ratingVisible ? (
+													<div className="hotel-review-item-rating">
+														<StaticStars
+															rating={rating}
+															label={
+																isArabic
+																	? `\u0627\u0644\u062a\u0642\u064a\u064a\u0645 ${rating} \u0645\u0646 5 \u0646\u062c\u0648\u0645`
+																	: `${rating} out of 5 stars`
+															}
+														/>
+														<bdi dir="ltr">{rating}.0</bdi>
+													</div>
+												) : null}
 											</div>
-											<p className={review.comment ? undefined : "is-rating-only"}>
-												{cleanText(review.comment, 4000) || copy.ratingOnly}
-											</p>
+											{comment ? (
+												<p>{comment}</p>
+											) : ratingVisible ? (
+												<p className="is-rating-only">{copy.ratingOnly}</p>
+											) : null}
 											{review.verifiedStay ? (
 												<span className="hotel-review-verified"><ShieldCheck size={14} />{copy.verified}</span>
 											) : null}
@@ -853,7 +888,7 @@ export default function HotelReviews({
 						)}
 						<PaginationControls
 							currentPage={pagination.page}
-							totalItems={pagination.totalItems || normalizedSummary.ratingCount}
+							totalItems={publicReviewCount}
 							pageSize={HOTEL_REVIEW_PAGE_SIZE}
 							onPageChange={loadReviewsPage}
 							label={copy.recent}

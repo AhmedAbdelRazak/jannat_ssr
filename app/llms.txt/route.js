@@ -10,7 +10,10 @@ import { slugifyHotel, titleCase } from "../../lib/format";
 import { resolveHotelRating } from "../../lib/hotelRatings.mjs";
 
 export async function GET() {
-	const [hotels, dealHotels] = await Promise.all([getHotels(), getDealHotels()]);
+	const [hotels, dealHotels] = await Promise.all([
+		getHotels({ freshRatings: true }),
+		getDealHotels(),
+	]);
 	const offersLine = Array.isArray(dealHotels) && dealHotels.length
 		? `- [Offers](${BRAND_URL}/jannat-offers-monthly-reservations)\n`
 		: "";
@@ -38,7 +41,7 @@ Trust and booking model:
 - Private checkout, payment, dashboard, reservation, and support-case URLs are intentionally excluded from indexing.
 
 Guest rating methodology:
-- Guest aggregates shown here are calculated from active user-submitted ratings; inactive ratings are excluded. A "Verified stay" badge appears on the hotel page only when the submission is matched to a reservation. A hotel without an active guest rating has no guest aggregate on this file, and its legacy hotel score is not presented as guest feedback.
+- Guest aggregates shown here are calculated only from publicly visible user-submitted ratings; hidden ratings are excluded. A "Verified stay" badge appears on the hotel page only when the submission is matched to a reservation. A hotel without a public guest rating has no guest aggregate on this file, and its legacy hotel score is not presented as guest feedback.
 
 Primary public pages:
 - [Home](${BRAND_URL}/)
@@ -67,7 +70,7 @@ Privacy:
 	return new Response(body, {
 			headers: {
 			"Content-Type": "text/markdown; charset=utf-8",
-			"Cache-Control": "public, max-age=300, s-maxage=300",
+			"Cache-Control": "no-store, max-age=0",
 		},
 	});
 }

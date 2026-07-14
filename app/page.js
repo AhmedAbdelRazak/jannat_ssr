@@ -6,11 +6,13 @@ import { DEFAULT_HERO_IMAGE } from "../lib/constants";
 import { maskWebsiteEmails } from "../lib/email";
 import { compactHotelForCard } from "../lib/hotelCardData.mjs";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
 	const [website, hotels, featuredHotels, roomTypes] = await Promise.all([
 		getWebsite(),
-		getHotels(),
-		getFeaturedHotels(),
+		getHotels({ freshRatings: true }),
+		getFeaturedHotels({ freshRatings: true }),
 		getRoomTypes(),
 	]);
 	const clientWebsite = maskWebsiteEmails({
