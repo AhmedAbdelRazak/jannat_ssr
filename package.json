@@ -1,13 +1,14 @@
 {
 	"name": "jannatbooking_ssr",
 	"version": "1.0.0",
+	"type": "module",
 	"private": true,
 	"homepage": "https://jannatbooking.com",
 	"scripts": {
 		"dev": "next dev -p 3104",
 		"build": "next build",
 		"start": "next start -p 3104",
-		"test:hotel-ratings": "node --test scripts/hotelRatings.test.mjs scripts/homePageData.test.mjs scripts/deals.test.mjs"
+		"test:hotel-ratings": "node --test scripts/hotelRatings.test.mjs scripts/homePageData.test.mjs scripts/hotelReviews.test.mjs scripts/deals.test.mjs"
 	},
 	"dependencies": {
 		"@ant-design/icons": "^6.2.5",

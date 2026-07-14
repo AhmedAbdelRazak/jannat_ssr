@@ -146,7 +146,12 @@ export default async function SingleHotelPage({ params }) {
 		initialHotelReviews(slug),
 	]);
 	if (!hotel?.hotelName) notFound();
-	const publicHotel = withUpcomingDealsOnly(hotel);
+	const publicHotel = {
+		...withUpcomingDealsOnly(hotel),
+		// Never serialize a cached hotel-list aggregate beside the no-store review
+		// response. One authoritative summary prevents inference of a hidden rating.
+		guestReviewSummary: reviewsData.summary,
+	};
 	const structuredData = hotelJsonLd({ hotel: publicHotel, slug, reviewsData });
 	const clientWebsite = maskWebsiteEmails({
 		phone: website?.phone,

@@ -18,7 +18,10 @@ export default async function OurHotelsPage({ searchParams }) {
 	const params = await searchParams;
 	const requestedDestination = firstParam(params?.destination);
 	const destination = normalizeHotelDestination(requestedDestination) || "Makkah";
-	const [hotels, roomTypes] = await Promise.all([getHotels(), getRoomTypes()]);
+	const [hotels, roomTypes] = await Promise.all([
+		getHotels({ freshRatings: true }),
+		getRoomTypes(),
+	]);
 	return (
 		<>
 			<PageHero
