@@ -398,10 +398,6 @@ Production Readiness Notes
 Related Backend Reference
 - D:\JannatBooking\hotels_backend\JANNATBOOKING_SSR_BACKEND_REFERENCE.txt
 
-Thread Implementation Summary
-- D:\JannatBooking\jannatbooking_ssr\THREAD_IMPLEMENTATION_SUMMARY_2026-06-19.md
-  - Documents the 2026-06-19 SSR polish, checkout, offers, currency, private payment-link, PMS link-generation, backend support, and analytics/conversion tracking work.
-
 Production Cutover - 2026-06-19
 - Public domain: https://jannatbooking.com
 - Production server: ahmedadmin@jannat

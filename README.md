@@ -40,7 +40,7 @@ Checkout, payment, reservation, and dashboard routes are treated as private or n
 - Google Analytics and Facebook Pixel load from `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID` / `NEXT_PUBLIC_FACEBOOK_PIXEL_ID`.
 - Standard conversion events are emitted for search, hotel views, add-to-cart, checkout start, leads, contact, chat, and reservation requests while preserving legacy custom event names.
 - Payment amount selection and payment button/order creation are tracked as `add_payment_info` / Meta `AddPaymentInfo`; successful browser payment completion remains `purchase` / Meta `Purchase`.
-- Backend Conversion API / Measurement Protocol dispatch is documented in `D:\JannatBooking\hotels_backend\docs\analytics-conversion-tracking-2026-06-25.md`.
+- Backend Conversion API / Measurement Protocol dispatch remains owned by the backend analytics services.
 - The support widget supports query-param state such as `chat=open`, `chatName`, `chatContact`, `chatHotelId`, `chatHotelName`, `chatInquiry`, `chatDetails`, and `chatLanguage`.
 - Stored chat state is only auto-restored when it still belongs to the current single-hotel page. Visiting the home page clears stale stored chat cases so a deleted/old case cannot reopen as a blank mobile chat shell.
 - Chat message sends use optimistic rendering with a unique `clientTag`. If a mobile send times out, the widget re-fetches the case and verifies that tag before showing an error, preventing false "message failed" notices when the backend saved the message slightly after the request timeout.
@@ -53,5 +53,5 @@ Checkout, payment, reservation, and dashboard routes are treated as private or n
 
 ## Full Reference
 
-- `JANNATBOOKING_SSR_REFERENCE.txt`
-- Backend companion: `D:\JannatBooking\hotels_backend\JANNATBOOKING_SSR_BACKEND_REFERENCE.txt`
+- [`JANNATBOOKING_SSR_REFERENCE.txt`](JANNATBOOKING_SSR_REFERENCE.txt)
+- Backend companion: [`JANNATBOOKING_SSR_BACKEND_REFERENCE.txt`](../hotels_backend/JANNATBOOKING_SSR_BACKEND_REFERENCE.txt)
