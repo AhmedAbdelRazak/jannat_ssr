@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Download, FileText, Headphones } from "lucide-react";
-import { apiUrl, getSingleReservationInvoice } from "../../../lib/api";
+import { getSingleReservationInvoice } from "../../../lib/api";
 import { BRAND_NAME } from "../../../lib/constants";
 import {
 	buildReceiptRoomRows,
@@ -111,7 +111,7 @@ export default async function SingleReservationPage({ params }) {
 					<h1>Your reservation details</h1>
 				</div>
 				<div className="invoice-actions">
-					<a className="btn btn-primary" href={apiUrl(`/single-reservations/${encodeURIComponent(confirmation)}/pdf`)}>
+					<a className="btn btn-primary" href={`/api/single-reservations/${encodeURIComponent(confirmation)}/pdf`}>
 						<Download size={18} /> Download PDF
 					</a>
 					<Link className="btn btn-ghost" href="/contact"><Headphones size={18} /> Support</Link>
