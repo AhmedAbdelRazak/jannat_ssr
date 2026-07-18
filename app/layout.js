@@ -1,5 +1,6 @@
 import "./globals.css";
 import "antd/dist/reset.css";
+import "flag-icons/css/flag-icons.min.css";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { getDealHotels, getHotels, getWebsite } from "../lib/api";
