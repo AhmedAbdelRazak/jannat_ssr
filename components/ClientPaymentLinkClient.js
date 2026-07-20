@@ -37,6 +37,7 @@ import {
 } from "../lib/api";
 import { trackConversion } from "../lib/analyticsEvents";
 import { safeNumber } from "../lib/booking";
+import { clientPaymentHotelName } from "../lib/clientPayment";
 import { useJannatApp } from "./JannatAppProvider";
 
 const APPLE_PAY_SDK_SRC = "https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js";
@@ -661,6 +662,7 @@ function ClientPaymentButtons({
 		selectedOption &&
 		isPositive(selectedOption.sarAmount) &&
 		isPositive(selectedUsdAmount);
+	const hotelName = clientPaymentHotelName(reservation);
 	const buttonsForceReRender = useMemo(
 		() => [
 			selectedOption?.id || "none",
@@ -712,7 +714,6 @@ function ClientPaymentButtons({
 	const buildPurchaseUnits = () => {
 		const confirmation = reservation?.confirmation_number || "";
 		const guest = reservation?.customer_details || {};
-		const hotelName = reservation?.hotelName || reservation?.hotelId?.hotelName || "Jannat Booking";
 		const invoiceId = `JB-${confirmation || reservation?._id || "reservation"}-${Date.now().toString(36)}`.slice(0, 127);
 		return [
 			{
