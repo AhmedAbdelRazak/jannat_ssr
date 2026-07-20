@@ -7472,6 +7472,21 @@ html[dir="rtl"] .summary-count {
 	gap: 10px;
 }
 
+.paypal-smart-buttons,
+.paypal-buttons-unavailable {
+	width: 100%;
+}
+
+.paypal-buttons-unavailable {
+	display: grid;
+	gap: 10px;
+}
+
+.paypal-buttons-unavailable .ant-btn {
+	min-height: 46px;
+	font-weight: 900;
+}
+
 .paypal-powered-note {
 	color: var(--zad-muted);
 	font-size: 12px;
