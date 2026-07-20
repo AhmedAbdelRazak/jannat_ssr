@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, App as AntdApp, Button, Checkbox, Form, Input, InputNumber, Select, Spin } from "antd";
 import {
-	PayPalButtons,
 	PayPalCardFieldsForm,
 	PayPalCardFieldsProvider,
 	PayPalCVVField,
@@ -39,6 +38,7 @@ import {
 } from "../lib/booking";
 import { cartPackageIssue } from "../lib/dealPolicy.mjs";
 import OptimizedImage from "./OptimizedImage";
+import PayPalSmartButtons from "./PayPalSmartButtons";
 import { useJannatApp } from "./JannatAppProvider";
 
 const normalizePhoneInput = (value = "") =>
@@ -1117,6 +1117,19 @@ function JannatPayPalButtons({
 	);
 	const inlineCardFieldsReady = cardFieldsStatus === "ready" && canRenderPayPalCardFields();
 	const cardFieldsResetKey = `${buttonsForceReRender.join("|")}-${cardFieldsStatus}`;
+	const smartButtonsFallback = (
+		<div className="paypal-buttons-unavailable">
+			<Alert
+				type="warning"
+				showIcon
+				title={isArabic ? "\u062e\u064a\u0627\u0631\u0627\u062a \u0627\u0644\u062f\u0641\u0639 \u0627\u0644\u0622\u0645\u0646 \u062a\u062d\u062a\u0627\u062c \u0625\u0644\u0649 \u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644" : "Secure payment options need to be reloaded"}
+				description={isArabic ? "\u064a\u0631\u062c\u0649 \u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644 \u062e\u064a\u0627\u0631\u0627\u062a PayPal \u0648\u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u062f\u0648\u0646 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0635\u0641\u062d\u0629." : "Reload PayPal and card options without refreshing the page."}
+			/>
+			<Button type="primary" onClick={onReloadPayment}>
+				{isArabic ? "\u0625\u0639\u0627\u062f\u0629 \u062a\u062d\u0645\u064a\u0644 \u062e\u064a\u0627\u0631\u0627\u062a \u0627\u0644\u062f\u0641\u0639" : "Reload payment options"}
+			</Button>
+		</div>
+	);
 
 	return (
 		<div className="paypal-box">
@@ -1125,9 +1138,8 @@ function JannatPayPalButtons({
 				{payPalChargeNode}
 			</div>
 			<PayPalStatus />
-			<PayPalButtons
-				fundingSource="paypal"
-				style={{ layout: "vertical", label: "paypal" }}
+			<PayPalSmartButtons
+				fallback={smartButtonsFallback}
 				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
@@ -1144,31 +1156,6 @@ function JannatPayPalButtons({
 							key: "checkout-payment-error",
 							type: "error",
 							content: paypalErrorMessage(error, isArabic),
-							duration: 4,
-						});
-					}
-				}}
-				disabled={!allowInteract}
-			/>
-			<PayPalButtons
-				fundingSource="card"
-				style={{ layout: "vertical", label: "pay" }}
-				forceReRender={buttonsForceReRender}
-				onClick={handlePaymentButtonClick}
-				createOrder={createOrder}
-				onApprove={onApprove}
-				onCancel={cancelPending}
-				onError={async (error) => {
-					if (isPayPalPendingReviewPayload(error?.response || error)) {
-						handlePendingReview(error?.response || error);
-						return;
-					}
-					await cancelPending();
-					if (!shouldSuppressPaymentError(error)) {
-						message.open({
-							key: "checkout-payment-error",
-							type: "error",
-							content: paypalErrorMessage(error, isArabic, "card"),
 							duration: 4,
 						});
 					}

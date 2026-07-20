@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, App as AntdApp, Button, Spin } from "antd";
 import {
-	PayPalButtons,
 	PayPalCardFieldsForm,
 	PayPalCardFieldsProvider,
 	PayPalCVVField,
@@ -39,6 +38,7 @@ import { trackConversion } from "../lib/analyticsEvents";
 import { safeNumber } from "../lib/booking";
 import { clientPaymentHotelName } from "../lib/clientPayment";
 import { useJannatApp } from "./JannatAppProvider";
+import PayPalSmartButtons from "./PayPalSmartButtons";
 
 const APPLE_PAY_SDK_SRC = "https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js";
 const VALIDATION_KEY = "client-payment-validation";
@@ -890,6 +890,19 @@ function ClientPaymentButtons({
 			["Client Payment Button Clicked"]
 		);
 	};
+	const smartButtonsFallback = (
+		<div className="paypal-buttons-unavailable">
+			<Alert
+				type="warning"
+				showIcon
+				title={labels.moduleFailed}
+				description={labels.moduleFailedCopy}
+			/>
+			<Button type="primary" onClick={onReloadPayment}>
+				{labels.reloadPayment}
+			</Button>
+		</div>
+	);
 
 	return (
 		<div className="paypal-box">
@@ -898,38 +911,8 @@ function ClientPaymentButtons({
 				{chargeLabel}
 			</div>
 			<PayPalStatus />
-			<PayPalButtons
-				fundingSource="paypal"
-				style={{ layout: "vertical", label: "paypal" }}
-				forceReRender={buttonsForceReRender}
-				onClick={handlePaymentButtonClick}
-				createOrder={createOrder}
-				onApprove={onApprove}
-				onError={(error) => {
-					if (isPayPalPendingReviewPayload(error?.response || error)) {
-						onPaymentPendingReview?.(error?.response || error);
-						message.open({
-							key: "client-payment-review",
-							type: "warning",
-							content: paymentPendingReviewCopy(isArabic).description,
-							duration: 8,
-						});
-						return;
-					}
-					if (!shouldSuppressPaymentError(error)) {
-						message.open({
-							key: "client-payment-error",
-							type: "error",
-							content: error?.message || labels.paymentFailed,
-							duration: 5,
-						});
-					}
-				}}
-				disabled={!allowInteract}
-			/>
-			<PayPalButtons
-				fundingSource="card"
-				style={{ layout: "vertical", label: "pay" }}
+			<PayPalSmartButtons
+				fallback={smartButtonsFallback}
 				forceReRender={buttonsForceReRender}
 				onClick={handlePaymentButtonClick}
 				createOrder={createOrder}
